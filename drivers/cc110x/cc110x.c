@@ -35,7 +35,7 @@
 #include "cc110x-internal.h"
 #include "cc110x-spi.h"
 
-#define ENABLE_DEBUG    (0)
+#define ENABLE_DEBUG    (1)
 #include "debug.h"
 
 /* Internal function prototypes */
@@ -46,6 +46,7 @@ static void _power_up_reset(cc110x_t *dev);
 
 int cc110x_setup(cc110x_t *dev, const cc110x_params_t *params)
 {
+	uint8_t i;
     DEBUG("%s:%s:%u\n", RIOT_FILE_RELATIVE, __func__, __LINE__);
 
 #ifdef MODULE_CC110X_HOOKS
@@ -98,7 +99,13 @@ int cc110x_setup(cc110x_t *dev, const cc110x_params_t *params)
     LOG_INFO("cc110x: initialized with address=%u and channel=%i\n",
             (unsigned)dev->radio_address,
             dev->radio_channel);
-
+	DEBUG("Version=%#04x\n",cc110x_read_status(dev, (uint8_t)0x31));
+	DEBUG("CONFIGURATION REGISTERS:\n");
+	for( i = 0; i < 0x2E; i++)
+	DEBUG("%#04x=%#04x\n",i, cc110x_read_reg(dev, i));
+	DEBUG("STATUS REGISTERS:\n");
+	for(i = 0x30; i <= 0x3D;i++)
+	DEBUG("%#04x=%#04x\n",i,cc110x_read_status(dev, i));
     return 0;
 }
 
