@@ -86,7 +86,7 @@ const char cc110x_default_conf[] = {
     0x6B, /* WOREVT0 */
     0xF8, /* WORCTRL */
     0x56, /* FREND1 */
-    0x17, /* FREND0 */
+    0x11, /* FREND0 */
     0xEA, /* FSCAL3 */
     0x2A, /* FSCAL2 */
     0x00, /* FSCAL1 */
