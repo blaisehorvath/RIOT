@@ -40,7 +40,7 @@
 
 #include "log.h"
 
-#define ENABLE_DEBUG (0)
+#define ENABLE_DEBUG (1)
 #include "debug.h"
 
 static void _rx_abort(cc110x_t *dev)
@@ -67,6 +67,7 @@ static void _rx_start(cc110x_t *dev)
 
 static void _rx_read_data(cc110x_t *dev, void(*callback)(void*), void*arg)
 {
+
     int fifo = cc110x_get_reg_robust(dev, 0xfb);
 
     if (fifo & 0x80) {
@@ -84,11 +85,11 @@ static void _rx_read_data(cc110x_t *dev, void(*callback)(void*), void*arg)
     if (!pkt_buf->pos) {
         pkt_buf->pos = 1;
         pkt_buf->packet.length = cc110x_read_reg(dev, CC110X_RXFIFO);
-
+        DEBUG("GOT PACKET, LENGTH:%d", pkt_buf->packet.length);
         /* Possible packet received, RX -> IDLE (0.1 us) */
         dev->cc110x_statistic.packets_in++;
     }
-
+    DEBUG("%s:%s:%u DEBUG!\n", RIOT_FILE_RELATIVE, __func__, __LINE__);
     int left = pkt_buf->packet.length+1 - pkt_buf->pos;
 
     /* if the fifo doesn't contain the rest of the packet,
@@ -96,15 +97,18 @@ static void _rx_read_data(cc110x_t *dev, void(*callback)(void*), void*arg)
     int to_read = (fifo < left) ? (fifo-1) : fifo;
     if (to_read > left) {
         to_read = left;
+        DEBUG("%s:%s:%u DEBUG!\n", RIOT_FILE_RELATIVE, __func__, __LINE__);
     }
 
     if (to_read) {
         cc110x_readburst_reg(dev, CC110X_RXFIFO,
                 ((char *)&pkt_buf->packet)+pkt_buf->pos, to_read);
         pkt_buf->pos += to_read;
+        DEBUG("%s:%s:%u DEBUG!\n", RIOT_FILE_RELATIVE, __func__, __LINE__);
     }
 
     if (to_read == left) {
+    	DEBUG("%s:%s:%u DEBUG!\n", RIOT_FILE_RELATIVE, __func__, __LINE__);
         uint8_t status[2];
         /* full packet received. */
         /* Read the 2 appended status bytes (status[0] = RSSI, status[1] = LQI) */
@@ -120,7 +124,8 @@ static void _rx_read_data(cc110x_t *dev, void(*callback)(void*), void*arg)
         int crc_ok = (status[I_LQI] & CRC_OK) >> 7;
 
         if (crc_ok) {
-                    LOG_DEBUG("cc110x: received packet from=%u to=%u payload "
+        	DEBUG("%s:%s:%u DEBUG!\n", RIOT_FILE_RELATIVE, __func__, __LINE__);
+                    DEBUG("cc110x: received packet from=%u to=%u payload "
                             "len=%u\n",
                     (unsigned)pkt_buf->packet.phy_src,
                     (unsigned)pkt_buf->packet.address,
