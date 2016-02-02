@@ -35,7 +35,7 @@
 #include "cc110x-internal.h"
 #include "cc110x-spi.h"
 
-#define ENABLE_DEBUG    (1)
+#define ENABLE_DEBUG    (0)
 #include "debug.h"
 
 /* Internal function prototypes */

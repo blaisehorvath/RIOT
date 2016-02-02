@@ -31,13 +31,13 @@
 */
 const char cc110x_default_pa_table[8] = {
     0x00,   /*< -52 dBm */
-    0x0D,   /*< -20 dBm */
-    0x34,   /*< -10 dBm */
-    0x57,   /*< - 5 dBm */
-    0x8E,   /*<   0 dBm */
-    0x85,   /*< + 5 dBm */
-    0xCC,   /*< + 7 dBm */
-    0xC3    /*< +10 dBm */
+    0x03,   /*< -20 dBm */
+    0x17,   /*< -10 dBm */
+    0x00,   /*< - 5 dBm */
+    0x00,   /*<   0 dBm */
+    0x00,   /*< + 5 dBm */
+    0x00,   /*< + 7 dBm */
+    0x00    /*< +10 dBm */
 };
 
 const char cc110x_default_base_freq[3] = { 0x21, 0x71, 0x7F };
@@ -86,7 +86,7 @@ const char cc110x_default_conf[] = {
     0x6B, /* WOREVT0 */
     0xF8, /* WORCTRL */
     0x56, /* FREND1 */
-    0x11, /* FREND0 */
+    0x12, /* FREND0 */
     0xEA, /* FSCAL3 */
     0x2A, /* FSCAL2 */
     0x00, /* FSCAL1 */
