@@ -1,4 +1,4 @@
 # added this by Blaise based on (https://lists.riot-os.org/pipermail/users/2015-November/000468.html)
-ifneq (,$(filter cc110x,$(USEMODULE)))
+#ifneq (,$(filter cc110x,$(USEMODULE)))
     DISABLE_MODULE += gnrc_sixlowpan_iphc
-endif
+#endif
