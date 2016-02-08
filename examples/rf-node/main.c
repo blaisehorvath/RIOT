@@ -139,31 +139,41 @@ kernel_pid_t rfnode_udpthread_getpid(void)
 {
 	return _rfnode_udpthread_pid;
 }
-//*********************************END OF OUR OWN EVENTLOOP****************************************//
-//***************************STOLEN UDP*****************************************************//
-
-
-static void send(char *addr_str, char *port_str, char *data, unsigned int num,
+void rfnode_udpserver_start(uint32_t port)
+{
+    if (server.pid != KERNEL_PID_UNDEF) {
+        printf("Error: server already running on port %d\n",
+              (int) server.demux_ctx);
+        return;
+    }
+    if (port == 0) {
+        puts("Error: invalid port specified");
+        return;
+    }
+    server.pid = rfnode_udpthread_init();
+    server.demux_ctx = (uint32_t)port;
+    gnrc_netreg_register(GNRC_NETTYPE_UDP, &server);
+    printf("Success: started UDP server on port %d\n",(int) port);
+}
+void rfnode_udpserver_stop(void)
+{
+    /* check if server is running at all */
+    if (server.pid == KERNEL_PID_UNDEF) {
+        printf("Error: server was not running\n");
+        return;
+    }
+    /* stop server */
+    gnrc_netreg_unregister(GNRC_NETTYPE_UDP, &server);
+    server.pid = KERNEL_PID_UNDEF;
+    puts("Success: stopped UDP server");
+}
+void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int num,
                  unsigned int delay)
 {
-    uint8_t port[2];
-    uint16_t tmp;
-    ipv6_addr_t addr;
-
-    /* parse destination address */
-    if (ipv6_addr_from_str(&addr, addr_str) == NULL) {
-        puts("Error: unable to parse destination address");
-        return;
-    }
-    /* parse port */
-    tmp = (uint16_t)atoi(port_str);
-    if (tmp == 0) {
-        puts("Error: unable to parse destination port");
-        return;
-    }
-    port[0] = (uint8_t)tmp;
-    port[1] = tmp >> 8;
-
+	uint8_t port[2];
+    port[0] = (uint8_t)portin;
+    port[1] = portin >> 8;
+	//char tempstr[IPV6_ADDR_MAX_STR_LEN];
     for (unsigned int i = 0; i < num; i++) {
         gnrc_pktsnip_t *payload, *udp, *ip;
         /* allocate payload */
@@ -192,98 +202,16 @@ static void send(char *addr_str, char *port_str, char *data, unsigned int num,
             gnrc_pktbuf_release(ip);
             return;
         }
-        printf("Success: send %u byte to [%s]:%u\n", (unsigned)payload->size,
-               addr_str, tmp);
+       // ipv6_addr_to_str(tempstr,addr,IPV6_ADDR_MAX_STR_LEN);
+        printf(/*"Success: send %u byte to [%s]:%u\n"*/"Success: send %u byte \n", (unsigned)payload->size/*,
+        		addr, port*/);
+
         xtimer_usleep(delay);
     }
 }
+//*********************************END OF OUR OWN EVENTLOOP****************************************//
 
-static void start_server(char *port_str)
-{
-    uint16_t port;
-
-    /* check if server is already running */
-    if (server.pid != KERNEL_PID_UNDEF) {
-        printf("Error: server already running on port %" PRIu32 "\n",
-               server.demux_ctx);
-        return;
-    }
-    /* parse port */
-    port = (uint16_t)atoi(port_str);
-    if (port == 0) {
-        puts("Error: invalid port specified");
-        return;
-    }
-    /* start server (which means registering pktdump for the chosen port) */
-    server.pid = rfnode_udpthread_init();// gnrc_pktdump_getpid();
-    server.demux_ctx = (uint32_t)port;
-    gnrc_netreg_register(GNRC_NETTYPE_UDP, &server);
-    printf("Success: started UDP server on port %" PRIu16 "\n", port);
-}
-
-static void stop_server(void)
-{
-    /* check if server is running at all */
-    if (server.pid == KERNEL_PID_UNDEF) {
-        printf("Error: server was not running\n");
-        return;
-    }
-    /* stop server */
-    gnrc_netreg_unregister(GNRC_NETTYPE_UDP, &server);
-    server.pid = KERNEL_PID_UNDEF;
-    puts("Success: stopped UDP server");
-}
-
-int udp_cmd(int argc, char **argv)
-{
-    if (argc < 2) {
-        printf("usage: %s [send|server]\n", argv[0]);
-        return 1;
-    }
-
-    if (strcmp(argv[1], "send") == 0) {
-        uint32_t num = 1;
-        uint32_t delay = 1000000;
-        if (argc < 5) {
-            printf("usage: %s send <addr> <port> <data> [<num> [<delay in us>]]\n",
-                   argv[0]);
-            return 1;
-        }
-        if (argc > 5) {
-            num = (uint32_t)atoi(argv[5]);
-        }
-        if (argc > 6) {
-            delay = (uint32_t)atoi(argv[6]);
-        }
-        send(argv[2], argv[3], argv[4], num, delay);
-    }
-    else if (strcmp(argv[1], "server") == 0) {
-        if (argc < 3) {
-            printf("usage: %s server [start|stop]\n", argv[0]);
-            return 1;
-        }
-        if (strcmp(argv[2], "start") == 0) {
-            if (argc < 4) {
-                printf("usage %s server start <port>\n", argv[0]);
-                return 1;
-            }
-            start_server(argv[3]);
-        }
-        else if (strcmp(argv[2], "stop") == 0) {
-            stop_server();
-        }
-        else {
-            puts("error: invalid command");
-        }
-    }
-    else {
-        puts("error: invalid command");
-    }
-    return 0;
-}
-//********************************END OF STOLEN UDP****************************************//
 static const shell_command_t shell_commands[] = {
-    { "udp", "send data over UDP and listen on UDP ports", udp_cmd },
     { NULL, NULL, NULL }
 };
 int main(void)
@@ -304,8 +232,9 @@ int main(void)
 		        	            printf("error: unable to set ");
 		        	            puts("");
 		        	        }
-		        		gnrc_netapi_set(OURDEV_TEMP, NETOPT_ADDRESS, 0, &entry->addrs[i].addr.u8[15], addr_len);
-		        		gnrc_rpl_init(OURDEV_TEMP);
+		        		//gnrc_netapi_set(OURDEV_TEMP, NETOPT_ADDRESS, 0, &entry->addrs[i].addr.u8[15], addr_len);
+		        		gnrc_rpl_init(OURDEV_TEMP);// TODO ERROR HANDLING
+		        		rfnode_udpserver_start(12345);
 		        	}
 		            if (ipv6_addr_to_str(ipv6_addr, &entry->addrs[i].addr,
 		                                 IPV6_ADDR_MAX_STR_LEN)) {
