@@ -69,109 +69,77 @@
 //END OF TEMP INCLODER
 static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
 #define MAIN_QUEUE_SIZE     (8)
-static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
+// 					OUR DEFINES
+#define RFNODE_UDPTHREAD_MSG_QUEUE_SIZE 8
+#define RFNODE_UDPTHREAD_STACKSIZE (THREAD_STACKSIZE_MAIN)
+#define RFNODE_UDPTHREAD_PRIO 6
+//					END OF OUR DEFINES
 
-//extern int udp_cmd(int argc, char **argv);
+static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 
 
 #define OURDEV_TEMP 7
-//*********************Stolen stuff from pktdump*************************//
-/**
- * @brief   PID of the pktdump thread
- */
-static kernel_pid_t _pid = KERNEL_PID_UNDEF;
-
-/**
- * @brief   Stack for the pktdump thread
- */
-static char _stack[GNRC_PKTDUMP_STACKSIZE];
-
-static void _dump_snip(gnrc_pktsnip_t *pkt)
+//*********************************OUR OWN EVENTLOOP****************************************//
+static char rfnode_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
+kernel_pid_t _rfnode_udpthread_pid = KERNEL_PID_UNDEF;
+static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
 {
-    switch (pkt->type) {
-        case GNRC_NETTYPE_UDP:
-            printf("NETTYPE_UDP (%i)\n", pkt->type);
-            udp_hdr_print(pkt->data);
-            break;
-        default:
-            break;
-    }
-}
-
-static void _dump(gnrc_pktsnip_t *pkt)
-{
-    int snips = 0;
-    int size = 0;
+    //int snips = 0;
+    //int size = 0;
     gnrc_pktsnip_t *snip = pkt;
-
     while (snip != NULL) {
-        printf("~~ SNIP %2i - size: %3u byte, type: ", snips,
-               (unsigned int)snip->size);
-        _dump_snip(snip);
-        ++snips;
-        size += snip->size;
+        if (snip->type == GNRC_NETTYPE_UNDEF ) {
+                printf("snip->data: %s\n",(char*)snip->data); // Handle the state machine here.
+        }
+        //++snips;
+        //size += snip->size;
         snip = snip->next;
     }
-
-    printf("~~ PKT    - %2i snips, total size: %3i byte\n", snips, size);
     gnrc_pktbuf_release(pkt);
 }
-
-static void *_eventloop(void *arg)
+static void* rfnode_udp_eventloop(void* arg)
 {
     (void)arg;
     msg_t msg, reply;
-    msg_t msg_queue[GNRC_PKTDUMP_MSG_QUEUE_SIZE];
-
-    /* setup the message queue */
-    msg_init_queue(msg_queue, GNRC_PKTDUMP_MSG_QUEUE_SIZE);
-
+    msg_t msg_queue[RFNODE_UDPTHREAD_MSG_QUEUE_SIZE];
+    msg_init_queue(msg_queue, RFNODE_UDPTHREAD_MSG_QUEUE_SIZE);
     reply.content.value = (uint32_t)(-ENOTSUP);
     reply.type = GNRC_NETAPI_MSG_TYPE_ACK;
-
     while (1) {
         msg_receive(&msg);
-
         switch (msg.type) {
             case GNRC_NETAPI_MSG_TYPE_RCV:
-                puts("PKTDUMP: data received:");
-                _dump((gnrc_pktsnip_t *)msg.content.ptr);
+                puts("RFNODE_UDP_EVENTLOOP: data received:");
+                rfnode_udp_get((gnrc_pktsnip_t *)msg.content.ptr);
                 break;
             case GNRC_NETAPI_MSG_TYPE_SND:
-                puts("PKTDUMP: data to send:");
-                _dump((gnrc_pktsnip_t *)msg.content.ptr);
+                puts("RFNODE_UDP_EVENTLOOP: data to send:");
+                //_dump((gnrc_pktsnip_t *)msg.content.ptr);
                 break;
             case GNRC_NETAPI_MSG_TYPE_GET:
             case GNRC_NETAPI_MSG_TYPE_SET:
                 msg_reply(&msg, &reply);
                 break;
             default:
-                puts("PKTDUMP: received something unexpected");
+                puts("RFNODE_UDP_EVENTLOOP: received something unexpected");
                 break;
         }
     }
-
-    /* never reached */
-    return NULL;
+    return NULL; // Never reached
 }
-
-kernel_pid_t gnrc_pktdump_getpid(void)
+kernel_pid_t rfnode_udpthread_init(void)
 {
-    return _pid;
+	if(_rfnode_udpthread_pid ==  KERNEL_PID_UNDEF){
+		_rfnode_udpthread_pid = thread_create(rfnode_udpthread_stack, sizeof(rfnode_udpthread_stack),RFNODE_UDPTHREAD_PRIO,
+				THREAD_CREATE_STACKTEST, rfnode_udp_eventloop, NULL, "rfnode_udp_rec");
+	}
+	return _rfnode_udpthread_pid;
 }
-
-kernel_pid_t gnrc_pktdump_init(void)
+kernel_pid_t rfnode_udpthread_getpid(void)
 {
-    if (_pid == KERNEL_PID_UNDEF) {
-        _pid = thread_create(_stack, sizeof(_stack), GNRC_PKTDUMP_PRIO,
-                             THREAD_CREATE_STACKTEST,
-                             _eventloop, NULL, "pktdump");
-    }
-    return _pid;
+	return _rfnode_udpthread_pid;
 }
-
-
-//****************************END OF STOLEN PKTDUMP******************************************//
+//*********************************END OF OUR OWN EVENTLOOP****************************************//
 //***************************STOLEN UDP*****************************************************//
 
 
@@ -247,7 +215,7 @@ static void start_server(char *port_str)
         return;
     }
     /* start server (which means registering pktdump for the chosen port) */
-    server.pid = gnrc_pktdump_getpid();
+    server.pid = rfnode_udpthread_init();// gnrc_pktdump_getpid();
     server.demux_ctx = (uint32_t)port;
     gnrc_netreg_register(GNRC_NETTYPE_UDP, &server);
     printf("Success: started UDP server on port %" PRIu16 "\n", port);
@@ -331,7 +299,7 @@ int main(void)
 		        	if((entry->addrs[i].addr.u64[0].u64) == 0x80fe) // If our address in in the 0x80fe field, then we set the hwaddr to the last bit
 		        	{
 		        	    size_t addr_len = 2;
-		        	    if (gnrc_netapi_set(OURDEV_TEMP, NETOPT_ADDRESS, 0,
+		        	    if (gnrc_netapi_set(OURDEV_TEMP, NETOPT_ADDRESS, 0, //Set the adress
 		        	    		&entry->addrs[i].addr.u8[15], addr_len) < 0) {
 		        	            printf("error: unable to set ");
 		        	            puts("");
