@@ -12,6 +12,10 @@ BOARD_INSUFFICIENT_MEMORY := airfy-beacon chronos msb-430 msb-430h nrf51dongle \
                           stm32f0discovery telosb weio wsn430-v1_3b wsn430-v1_4 \
                           yunjia-nrf51822 z1
 
+# include and auto-initialize all available sensors
+USEMODULE += saul_reg
+USEMODULE += saul_default
+USEMODULE += auto_init_saul
 # Include packages that pull up and auto-init the link layer.
 # NOTE: 6LoWPAN will be included if IEEE802.15.4 devices are present
 USEMODULE += gnrc_netif_default
@@ -29,7 +33,6 @@ USEMODULE += gnrc_icmpv6_echo
 USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += ps
-
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
 # development process:

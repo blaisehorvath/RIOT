@@ -2,3 +2,6 @@
 ifneq (,$(filter cc110x,$(USEMODULE)))
     DISABLE_MODULE += gnrc_sixlowpan_iphc
 endif
+ifneq (,$(filter saul_default,$(USEMODULE)))
+  USEMODULE += saul_gpio
+endif

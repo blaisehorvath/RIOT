@@ -66,7 +66,9 @@
 #include "net/gnrc/udp.h"
 #include "timex.h"
 #include "xtimer.h"
-//END OF TEMP INCLODER
+//END OF TEMP INCLUDES
+#include "phydat.h"
+#include "rfnode.h"
 static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
 #define MAIN_QUEUE_SIZE     (8)
 // 					OUR DEFINES
@@ -248,7 +250,18 @@ int main(void)
     /**/
 	msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
     puts("RIOT network stack example application");
-
+    rfnode_pkt pkt;
+    phydat_t temp;
+    temp.scale= 0;
+    temp.unit = 0;
+    temp.val[0] = 5;
+    pkt.cnt = 1;
+    pkt.data = temp;
+    pkt.msg = GET_SENSACT_LIST;
+    //pkt.name = "fasz";
+    pkt.new_device = 1;
+    if(0)
+    printf("%s", (char*)&pkt);
     /* start shell */
     puts("All up, running the shell now");
     char line_buf[SHELL_DEFAULT_BUFSIZE];
