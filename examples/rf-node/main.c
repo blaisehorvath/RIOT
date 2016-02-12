@@ -69,6 +69,7 @@
 //END OF TEMP INCLUDES
 #include "phydat.h"
 #include "rfnode.h"
+#include "saul_reg.h"
 static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
 #define MAIN_QUEUE_SIZE     (8)
 // 					OUR DEFINES
@@ -76,7 +77,7 @@ static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PI
 #define RFNODE_UDPTHREAD_STACKSIZE (THREAD_STACKSIZE_MAIN)
 #define RFNODE_UDPTHREAD_PRIO 6
 //					END OF OUR DEFINES
-
+void snd_rfnode_pkt_to_root(rfnode_pkt* );
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 
 
@@ -84,20 +85,147 @@ static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 //*********************************OUR OWN EVENTLOOP****************************************//
 static char rfnode_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
 kernel_pid_t _rfnode_udpthread_pid = KERNEL_PID_UNDEF;
+typedef enum {
+	LISTEN /**< Initial state, wait for incoming packet*/
+} rfnode_state;
+
+//static rfnode_state rfstate = LISTEN;
+int rfnode_statemachine(rfnode_pkt* pkt,rfnode_pkt* pkt_back)
+{
+	/**
+	 * @brief   Our application level communication protocol
+	 * Flow:
+	 * The flow is directed be the msg in the rfnode_pkt type.
+	 * The server first sends a GET_SENSACT_LIST command where cnt is 0
+	 * The node then sends a SENSACT_LIST_ACK back, where the cnt contains the count of the
+	 * available sensors/actuators
+	 * After that the server sends a SENSACT_LIST_ITEM command with the number of the item in the cnt
+	 * The response is a SENSACT_LIST_ITEM with the number of the sensor/actuator in the cnt
+	 * and the name of the device in the name field of the rfnode_pkt, and the possible
+	 * binary values of dimensions in the data field, and the type of the sensor from saul in the new_device field
+	 *
+	 * Setting/getting the actuator/sensor is possible with the SET/GET_SENSACT type, the answer from the
+	 * node is a SENSACT_ACK type with the new values. The name and the value in the cnt must be the same.
+	 */
+	///Clear pkt_back
+	int i = 0;
+	saul_reg_t *dev;
+	//saul_driver_t temp;
+	pkt_back->cnt = 0;
+	pkt_back->data.scale = 0;
+	pkt_back->data.unit = 0;
+	pkt_back->data.val[0] = 0;
+	pkt_back->data.val[1] = 0;
+	pkt_back->data.val[2] = 0;
+	pkt_back->msg = 0;
+	for(i = 0; i < 20; i++)
+	pkt_back->name[i] = 0;
+	pkt_back->new_device = 0;
+	i = 0;
+	switch(pkt->msg){
+	case GET_SENSACT_LIST:
+		//TODO: fill pkt_back with the the number of saul devices, SENSACT_LIST_ACK type
+		dev = saul_reg_get();
+		while(dev)
+		{
+			dev = dev->next;
+			i++;//i is the number of devices
+		}
+		pkt_back->cnt = i;
+		pkt_back->msg = SENSACT_LIST_ACK;
+		break;
+
+	case SENSACT_LIST_ACK:
+		puts("Node catched SENSACT_LIST_ACK type, not available at nodes!");
+		return 0;
+		break;
+
+	case SENSACT_LIST_ITEM:
+		//TODO: fill pkt_back with the corresponting cnt, name and dimension in data, SENSACT_LIST_ITEM type
+		dev = saul_reg_get();
+		for(i = 0; i <pkt->cnt; i++) // i is the number of the device
+		{
+			dev = dev->next;
+		}
+		pkt_back->cnt = pkt->cnt;
+		strcpy(pkt_back->name, dev->name);
+		pkt_back->new_device = dev->driver->type;
+		switch(dev->driver->type)// Possibly not needed, could be handled on the gateway side // fill up dimensions from type
+		{
+			case SAUL_ACT_SWITCH:
+				pkt_back->data.val[0] = 1;
+				break;
+			default:
+				break;
+		}
+		pkt_back->msg = SENSACT_LIST_ITEM;
+		break;
+
+	case GET_SENSACT:
+		//TODO: get the values of the sensor/actuator, SENSACT_ACK type
+		dev = saul_reg_get();
+		for(i = 0; i <pkt->cnt; i++) // Is is the number of the device
+		{
+			dev = dev->next;
+		}
+		if (strcmp(pkt->name,dev->name))
+		{
+			DEBUG("Bad name for device number!!!");// Possibly better to send back error msg in the name field
+			return 0;
+		}
+		pkt_back->cnt = pkt->cnt;
+		strcpy(pkt_back->name, dev->name);
+		saul_reg_read(dev,&pkt_back->data);
+		pkt_back->msg = SENSACT_ACK;
+		break;
+
+	case SET_SENSACT:
+		//TODO: get the values of the sensor/actuator, SENSACT_ACK type
+		dev = saul_reg_get();
+		for(i = 0; i <pkt->cnt; i++) // Is is the number of the device
+		{
+			dev = dev->next;
+		}
+		if (strcmp(pkt->name,dev->name))
+		{
+			DEBUG("Bad name for device number!!!");// Possibly better to send back error msg in the name field
+			return 0;
+		}
+		pkt_back->cnt = pkt->cnt;
+		strcpy(pkt_back->name, dev->name);
+		phydat_dump(&pkt->data, 3);
+		saul_reg_write(dev,&pkt->data);
+		saul_reg_read(dev,&pkt_back->data);
+		pkt_back->msg = SENSACT_ACK;
+		break;
+	case SENSACT_ACK:
+		puts("Node catched SENSACT_ACK type, not available at nodes!");
+		return 0;
+		break;
+	}
+	return 1; // If answer else 0
+}
 static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
 {
+	int answer = 0;
     //int snips = 0;
     //int size = 0;
+	rfnode_pkt pkt_back;
     gnrc_pktsnip_t *snip = pkt;
     while (snip != NULL) {
         if (snip->type == GNRC_NETTYPE_UNDEF ) {
-                printf("snip->data: %s\n",(char*)snip->data); // Handle the state machine here.
+        		answer = rfnode_statemachine((rfnode_pkt*)snip->data, &pkt_back);
+                printf("data arrived!"); // Handle the state machine here.
         }
         //++snips;
         //size += snip->size;
         snip = snip->next;
     }
     gnrc_pktbuf_release(pkt);
+    if (answer)
+    {
+    	snd_rfnode_pkt_to_root(&pkt_back);
+    }
 }
 static void* rfnode_udp_eventloop(void* arg)
 {
@@ -210,6 +338,19 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
 
         xtimer_usleep(delay);
     }
+}
+void snd_rfnode_pkt_to_root(rfnode_pkt* pkt)
+{
+	puts("sensing pkt do dodag root");
+    ipv6_addr_t addr;
+    if (ipv6_addr_from_str(&addr, "fe80::01") == NULL) {
+        puts("Error: unable to parse destination address");
+        return;
+    }
+	//rfnode_udpsend(1000000,)
+    rfnode_udpsend(addr, (uint16_t) 12345,(char*) pkt, 1,
+                     (unsigned int) 1000000);
+    return;
 }
 int sndpkt_dodagroot(int argc, char **argv)
 {
