@@ -223,25 +223,35 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
             gnrc_pktbuf_release(ip);
             return;
         }
-       // ipv6_addr_to_str(tempstr,addr,IPV6_ADDR_MAX_STR_LEN);
         printf(/*"Success: send %u byte to [%s]:%u\n"*/"Success: send %u byte \n", (unsigned)payload->size/*,
         		addr, port*/);
 
         xtimer_usleep(delay);
     }
 }
-int sndpkt_dodagroot(int argc, char **argv)
+int sndpkt(int argc, char **argv)
 {
-	puts("sensing pkt do dodag root");
+	if (argc != 12) printf(
+			"Not enough arguments!Usage:\n1: addr\n2: msg\n3: cnt\n4: data->val[0]\n5: data -> val[1]\n6: data ->val[2]\n7: data->unit\n8: data->scale\n9: name\n10: new_device");
+	printf("sending pkt to %s!\n", argv[1]);
 	rfnode_pkt pkttemp;
 	rfnode_pkt* pkt = &pkttemp;
-	strcpy(pkt->name, "faszfasz");
+	/**<Fill out pkt values*/
+	pkt->msg = (pkt_msg)atoi(argv[2]);
+	pkt->cnt = (uint16_t)atoi(argv[3]);
+	pkt->data.val[0] = (int16_t)atoi(argv[4]);
+	pkt->data.val[1] = (int16_t)atoi(argv[5]);
+	pkt->data.val[2] = (int16_t)atoi(argv[6]);
+	pkt->data.unit = (uint8_t)atoi(argv[7]);
+	pkt->data.scale = (int8_t)atoi(argv[8]);
+	strcpy(pkt->name, argv[9]);
+	pkt->new_device = (uint8_t)atoi(argv[10]);
+
     ipv6_addr_t addr;
-    if (ipv6_addr_from_str(&addr, "fe80::01") == NULL) {
+    if (ipv6_addr_from_str(&addr, argv[1]) == NULL) {
         puts("Error: unable to parse destination address");
         return -1;
     }
-	//rfnode_udpsend(1000000,)
     rfnode_udpsend(addr, (uint16_t) 12345,(char*) pkt, 1,
                      (unsigned int) 1000000);
     return 0;
@@ -249,7 +259,7 @@ int sndpkt_dodagroot(int argc, char **argv)
 //*********************************END OF OUR OWN EVENTLOOP****************************************//
 extern int udp_cmd(int argc, char **argv);
 static const shell_command_t shell_commands[] = {
-	{"pkt_to_root","send packet to RPL dodag root",sndpkt_dodagroot},
+	{"sndpkt","send packets to one of the nodes",sndpkt},
 	{ "udp", "send data over UDP and listen on UDP ports", udp_cmd },
 	{ NULL, NULL, NULL },
 
@@ -286,7 +296,7 @@ int main(void)
     /* we need a message queue for the thread running the shell in order to
      * receive potentially fast incoming networking packets */
     /**/
-	rfnode_udpserver_start(12345);
+	rfnode_udpserver_start(12345); //TODO: hardcoded port
 	msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
     puts("RIOT network stack example application");
     /* start shell */
