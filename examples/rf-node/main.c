@@ -179,7 +179,7 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
     for (unsigned int i = 0; i < num; i++) {
         gnrc_pktsnip_t *payload, *udp, *ip;
         /* allocate payload */
-        payload = gnrc_pktbuf_add(NULL, data, strlen(data), GNRC_NETTYPE_UNDEF);
+        payload = gnrc_pktbuf_add(NULL, data, /*strlen(data)*/sizeof(rfnode_pkt), GNRC_NETTYPE_UNDEF);
         if (payload == NULL) {
             puts("Error: unable to copy data to packet buffer");
             return;
@@ -211,10 +211,29 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
         xtimer_usleep(delay);
     }
 }
+int sndpkt_dodagroot(int argc, char **argv)
+{
+	puts("sensing pkt do dodag root");
+	rfnode_pkt pkttemp;
+	rfnode_pkt* pkt = &pkttemp;
+	strcpy(pkt->name, "faszfasz");
+    ipv6_addr_t addr;
+    if (ipv6_addr_from_str(&addr, "fe80::01") == NULL) {
+        puts("Error: unable to parse destination address");
+        return -1;
+    }
+	//rfnode_udpsend(1000000,)
+    rfnode_udpsend(addr, (uint16_t) 12345,(char*) pkt, 1,
+                     (unsigned int) 1000000);
+    return 0;
+}
 //*********************************END OF OUR OWN EVENTLOOP****************************************//
-
+extern int udp_cmd(int argc, char **argv);
 static const shell_command_t shell_commands[] = {
-    { NULL, NULL, NULL }
+	{"pkt_to_root","send packet to RPL dodag root",sndpkt_dodagroot},
+	{ "udp", "send data over UDP and listen on UDP ports", udp_cmd },
+	{ NULL, NULL, NULL },
+
 };
 int main(void)
 {
@@ -250,18 +269,6 @@ int main(void)
     /**/
 	msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
     puts("RIOT network stack example application");
-    rfnode_pkt pkt;
-    phydat_t temp;
-    temp.scale= 0;
-    temp.unit = 0;
-    temp.val[0] = 5;
-    pkt.cnt = 1;
-    pkt.data = temp;
-    pkt.msg = GET_SENSACT_LIST;
-    //pkt.name = "fasz";
-    pkt.new_device = 1;
-    if(0)
-    printf("%s", (char*)&pkt);
     /* start shell */
     puts("All up, running the shell now");
     char line_buf[SHELL_DEFAULT_BUFSIZE];
