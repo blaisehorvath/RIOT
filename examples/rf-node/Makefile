@@ -1,5 +1,7 @@
 # name of your application
 APPLICATION = rf-node
+# Include rf-stuff "library"
+DIRS += $(CURDIR)/../rf-stuff
 
 # If no BOARD is found in the environment, use this default:
 BOARD ?= native
