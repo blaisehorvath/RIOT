@@ -130,11 +130,11 @@ static void* rfnode_udp_eventloop(void* arg)
         msg_receive(&msg);
         switch (msg.type) {
             case GNRC_NETAPI_MSG_TYPE_RCV:
-                puts("RFNODE_UDP_EVENTLOOP: data received:");
+                //puts("RFNODE_UDP_EVENTLOOP: data received:");
                 rfnode_udp_get((gnrc_pktsnip_t *)msg.content.ptr);
                 break;
             case GNRC_NETAPI_MSG_TYPE_SND:
-                puts("RFNODE_UDP_EVENTLOOP: data to send:");
+                //puts("RFNODE_UDP_EVENTLOOP: data to send:");
                 //_dump((gnrc_pktsnip_t *)msg.content.ptr);
                 break;
             case GNRC_NETAPI_MSG_TYPE_GET:
@@ -233,7 +233,7 @@ int sndpkt(int argc, char **argv)
 {
 	if (argc != 12) printf(
 			"Not enough arguments!Usage:\n1: addr\n2: msg\n3: cnt\n4: data->val[0]\n5: data -> val[1]\n6: data ->val[2]\n7: data->unit\n8: data->scale\n9: name\n10: new_device");
-	printf("sending pkt to %s!\n", argv[1]);
+	//printf("sending pkt to %s!\n", argv[1]);
 	rfnode_pkt pkttemp;
 	rfnode_pkt* pkt = &pkttemp;
 	/**<Fill out pkt values*/
@@ -266,36 +266,6 @@ static const shell_command_t shell_commands[] = {
 };
 int main(void)
 {
-	//OUR STUFF
-	//#ifdef MODULE_GNRC_IPV6_NETIF
-	/*DEBUG("**************IN OUR STUFF**************\n");
-	gnrc_pktdump_init();
-		gnrc_ipv6_netif_t *entry = gnrc_ipv6_netif_get((kernel_pid_t)OURDEV_TEMP);
-		char ipv6_addr[IPV6_ADDR_MAX_STR_LEN];
-		for (int i = 0; i < GNRC_IPV6_NETIF_ADDR_NUMOF; i++) {
-		        if (!ipv6_addr_is_unspecified(&entry->addrs[i].addr)) {
-		        	if((entry->addrs[i].addr.u64[0].u64) == 0x80fe) // If our address in in the 0x80fe field, then we set the hwaddr to the last bit
-		        	{
-		        	    size_t addr_len = 2;
-		        	    if (gnrc_netapi_set(OURDEV_TEMP, NETOPT_ADDRESS, 0, //Set the adress
-		        	    		&entry->addrs[i].addr.u8[15], addr_len) < 0) {
-		        	            printf("error: unable to set ");
-		        	            puts("");
-		        	        }
-		        		//gnrc_netapi_set(OURDEV_TEMP, NETOPT_ADDRESS, 0, &entry->addrs[i].addr.u8[15], addr_len);
-		        		gnrc_rpl_init(OURDEV_TEMP);// TODO ERROR HANDLING
-		        		rfnode_udpserver_start(12345);
-		        	}
-		            if (ipv6_addr_to_str(ipv6_addr, &entry->addrs[i].addr,
-		                                 IPV6_ADDR_MAX_STR_LEN)) {
-		                printf("dev:%d: %s\n",i, ipv6_addr);
-		            }
-		        }
-		    }*/
-	//#endif
-    /* we need a message queue for the thread running the shell in order to
-     * receive potentially fast incoming networking packets */
-    /**/
 	rfnode_udpserver_start(12345); //TODO: hardcoded port
 	msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
     puts("RIOT network stack example application");
