@@ -101,12 +101,12 @@ static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
 			printf("data.val[1] : %d\n",((rfnode_pkt*)snip->data)->data.val[1]);
 			printf("data.val[2] : %d\n",((rfnode_pkt*)snip->data)->data.val[2]);
 			printf("data.unit   : %u\n",((rfnode_pkt*)snip->data)->data.unit);
-			printf("data->scale : %d\n",((rfnode_pkt*)snip->data)->data.scale);
+			printf("data.scale : %d\n",((rfnode_pkt*)snip->data)->data.scale);
 			printf("name        : %s\n",((rfnode_pkt*)snip->data)->name);
 			printf("new_device  : %u\n",((rfnode_pkt*)snip->data)->new_device);
 			break;
 		case GNRC_NETTYPE_IPV6://FROM ipv6_hdr_print.c
-		    printf("source address: %s\n", ipv6_addr_to_str(addr_str, &((ipv6_hdr_t *)snip->data)->src,
+		    printf("Got pkt!source address: %s\n", ipv6_addr_to_str(addr_str, &((ipv6_hdr_t *)snip->data)->src,
 		            sizeof(addr_str)));
 			break;
 		default:
@@ -232,7 +232,7 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
 int sndpkt(int argc, char **argv)
 {
 	if (argc != 12) printf(
-			"Not enough arguments!Usage:\n1: addr\n2: msg\n3: cnt\n4: data->val[0]\n5: data -> val[1]\n6: data ->val[2]\n7: data->unit\n8: data->scale\n9: name\n10: new_device");
+			"Not enough arguments!Usage:\n1: addr\n2: msg\n3: cnt\n4: data->val[0]\n5: data -> val[1]\n6: data ->val[2]\n7: data->unit\n8: data->scale\n9: name\n10: new_device\n");
 	//printf("sending pkt to %s!\n", argv[1]);
 	rfnode_pkt pkttemp;
 	rfnode_pkt* pkt = &pkttemp;
@@ -249,7 +249,7 @@ int sndpkt(int argc, char **argv)
 
     ipv6_addr_t addr;
     if (ipv6_addr_from_str(&addr, argv[1]) == NULL) {
-        puts("Error: unable to parse destination address");
+        puts("Error: unable to parse destination address\n");
         return -1;
     }
     rfnode_udpsend(addr, (uint16_t) 12345,(char*) pkt, 1,
