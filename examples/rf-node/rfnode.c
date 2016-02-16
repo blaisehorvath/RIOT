@@ -32,11 +32,12 @@
 #define RFNODE_UDPTHREAD_STACKSIZE (THREAD_STACKSIZE_MAIN)
 #define RFNODE_UDPTHREAD_PRIO 6
 #define OURDEV_TEMP 7
+#define GNRC_NETTYPE_RFPKT GNRC_NETTYPE_NUMOF+2
 static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
-static gnrc_netreg_entry_t gatewayserver = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
+//static gnrc_netreg_entry_t gatewayserver = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
 
-static char rfgateway_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
-kernel_pid_t _rfgateway_udpthread_pid = KERNEL_PID_UNDEF;
+//static char rfgateway_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
+//kernel_pid_t _rfgateway_udpthread_pid = KERNEL_PID_UNDEF;
 static char rfnode_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
 kernel_pid_t _rfnode_udpthread_pid = KERNEL_PID_UNDEF;
 /**
@@ -98,7 +99,7 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
     for (unsigned int i = 0; i < num; i++) {
         gnrc_pktsnip_t *payload, *udp, *ip;
         /* allocate payload */
-        payload = gnrc_pktbuf_add(NULL, data, sizeof(rfnode_pkt), GNRC_NETTYPE_UNDEF);
+        payload = gnrc_pktbuf_add(NULL, data, sizeof(rfnode_pkt), GNRC_NETTYPE_RFPKT);
         if (payload == NULL) {
             puts("Error: unable to copy data to packet buffer");
             return;
@@ -255,7 +256,7 @@ void rfnode_udp_get(gnrc_pktsnip_t *pkt)
 	rfnode_pkt pkt_back;
     gnrc_pktsnip_t *snip = pkt;
     while (snip != NULL) {
-        if (snip->type == GNRC_NETTYPE_UNDEF ) {
+        if (snip->type == GNRC_NETTYPE_RFPKT ) {
         		answer = rfnode_statemachine((rfnode_pkt*)snip->data, &pkt_back);/// Handle the state machine here.
                 printf("data arrived!"); 
         }
@@ -374,129 +375,129 @@ int sndpkt_dodagroot(int argc, char **argv)
     return 0;
 }
 ///////////////////************************** GATEWAY CODE ************************/////////////////
-void rfgateway_udp_get(gnrc_pktsnip_t *pkt)
-{
-    //int snips = 0;
-    //int size = 0;
-    gnrc_pktsnip_t *snip = pkt;
-    char addr_str[IPV6_ADDR_MAX_STR_LEN];
-    while (snip != NULL) {
-        switch (snip->type){
-		case GNRC_NETTYPE_UNDEF:// Handle the state machine here.
-			printf("msg         : %d\n",((rfnode_pkt*)snip->data)->msg);
-			printf("cnt         : %u\n",((rfnode_pkt*)snip->data)->cnt);
-			printf("data.val[0] : %d\n",((rfnode_pkt*)snip->data)->data.val[0]);
-			printf("data.val[1] : %d\n",((rfnode_pkt*)snip->data)->data.val[1]);
-			printf("data.val[2] : %d\n",((rfnode_pkt*)snip->data)->data.val[2]);
-			printf("data.unit   : %u\n",((rfnode_pkt*)snip->data)->data.unit);
-			printf("data->scale : %d\n",((rfnode_pkt*)snip->data)->data.scale);
-			printf("name        : %s\n",((rfnode_pkt*)snip->data)->name);
-			printf("new_device  : %u\n",((rfnode_pkt*)snip->data)->new_device);
-			break;
-		case GNRC_NETTYPE_IPV6://FROM ipv6_hdr_print.c
-		    printf("source address: %s\n", ipv6_addr_to_str(addr_str, &((ipv6_hdr_t *)snip->data)->src,
-		            sizeof(addr_str)));
-			break;
-		default:
-			break;
-        }
-        snip = snip->next;
-    }
-    gnrc_pktbuf_release(pkt);
-}
-void* rfgateway_udp_eventloop(void* arg)
-{
-    (void)arg;
-    msg_t msg, reply;
-    msg_t msg_queue[RFNODE_UDPTHREAD_MSG_QUEUE_SIZE];
-    msg_init_queue(msg_queue, RFNODE_UDPTHREAD_MSG_QUEUE_SIZE);
-    reply.content.value = (uint32_t)(-ENOTSUP);
-    reply.type = GNRC_NETAPI_MSG_TYPE_ACK;
-    while (1) {
-        msg_receive(&msg);
-        switch (msg.type) {
-            case GNRC_NETAPI_MSG_TYPE_RCV:
-                puts("RFNODE_UDP_EVENTLOOP: data received:");
-                rfgateway_udp_get((gnrc_pktsnip_t *)msg.content.ptr);
-                break;
-            case GNRC_NETAPI_MSG_TYPE_SND:
-                puts("RFNODE_UDP_EVENTLOOP: data to send:");
-                break;
-            case GNRC_NETAPI_MSG_TYPE_GET:
-            case GNRC_NETAPI_MSG_TYPE_SET:
-                msg_reply(&msg, &reply);
-                break;
-            default:
-                puts("RFNODE_UDP_EVENTLOOP: received something unexpected");
-                break;
-        }
-    }
-    return NULL; // Never reached
-}
-kernel_pid_t rfgateway_udpthread_init(void)
-{
-	if(_rfgateway_udpthread_pid ==  KERNEL_PID_UNDEF){
-		_rfgateway_udpthread_pid = thread_create(rfgateway_udpthread_stack, sizeof(rfgateway_udpthread_stack),RFNODE_UDPTHREAD_PRIO,
-				THREAD_CREATE_STACKTEST, rfgateway_udp_eventloop, NULL, "rfnode_udp_rec");
-	}
-	return _rfgateway_udpthread_pid;
-}
-kernel_pid_t rfgateway_udpthread_getpid(void)
-{
-	return _rfgateway_udpthread_pid;
-}
-void rfgateway_udpserver_start(uint32_t port)
-{
-    if (gatewayserver.pid != KERNEL_PID_UNDEF) {
-        printf("Error: server already running on port %d\n",
-              (int) gatewayserver.demux_ctx);
-        return;
-    }
-    if (port == 0) {
-        puts("Error: invalid port specified");
-        return;
-    }
-    gatewayserver.pid = rfgateway_udpthread_init();
-    gatewayserver.demux_ctx = (uint32_t)port;
-    gnrc_netreg_register(GNRC_NETTYPE_UDP, &gatewayserver);
-    printf("Success: started UDP server on port %d\n",(int) port);
-}
-void rfgateway_udpserver_stop(void)
-{
-    /* check if server is running at all */
-    if (gatewayserver.pid == KERNEL_PID_UNDEF) {
-        printf("Error: server was not running\n");
-        return;
-    }
-    /* stop server */
-    gnrc_netreg_unregister(GNRC_NETTYPE_UDP, &gatewayserver);
-    gatewayserver.pid = KERNEL_PID_UNDEF;
-    puts("Success: stopped UDP server");
-}
-int sndpkt(int argc, char **argv)
-{
-	if (argc != 12) printf(
-			"Not enough arguments!Usage:\n1: addr\n2: msg\n3: cnt\n4: data->val[0]\n5: data -> val[1]\n6: data ->val[2]\n7: data->unit\n8: data->scale\n9: name\n10: new_device");
-	printf("sending pkt to %s!\n", argv[1]);
-	rfnode_pkt pkttemp;
-	rfnode_pkt* pkt = &pkttemp;
-	/**<Fill out pkt values*/
-	pkt->msg = (pkt_msg)atoi(argv[2]);
-	pkt->cnt = (uint16_t)atoi(argv[3]);
-	pkt->data.val[0] = (int16_t)atoi(argv[4]);
-	pkt->data.val[1] = (int16_t)atoi(argv[5]);
-	pkt->data.val[2] = (int16_t)atoi(argv[6]);
-	pkt->data.unit = (uint8_t)atoi(argv[7]);
-	pkt->data.scale = (int8_t)atoi(argv[8]);
-	strcpy(pkt->name, argv[9]);
-	pkt->new_device = (uint8_t)atoi(argv[10]);
-
-    ipv6_addr_t addr;
-    if (ipv6_addr_from_str(&addr, argv[1]) == NULL) {
-        puts("Error: unable to parse destination address");
-        return -1;
-    }
-    rfnode_udpsend(addr, (uint16_t) 12345,(char*) pkt, 1,
-                     (unsigned int) 1000000);
-    return 0;
-}
+//void rfgateway_udp_get(gnrc_pktsnip_t *pkt)
+//{
+//    //int snips = 0;
+//    //int size = 0;
+//    gnrc_pktsnip_t *snip = pkt;
+//    char addr_str[IPV6_ADDR_MAX_STR_LEN];
+//    while (snip != NULL) {
+//        switch (snip->type){
+//		case GNRC_NETTYPE_RFPKT:// Handle the state machine here.
+//			printf("msg         : %d\n",((rfnode_pkt*)snip->data)->msg);
+//			printf("cnt         : %u\n",((rfnode_pkt*)snip->data)->cnt);
+//			printf("data.val[0] : %d\n",((rfnode_pkt*)snip->data)->data.val[0]);
+//			printf("data.val[1] : %d\n",((rfnode_pkt*)snip->data)->data.val[1]);
+//			printf("data.val[2] : %d\n",((rfnode_pkt*)snip->data)->data.val[2]);
+//			printf("data.unit   : %u\n",((rfnode_pkt*)snip->data)->data.unit);
+//			printf("data->scale : %d\n",((rfnode_pkt*)snip->data)->data.scale);
+//			printf("name        : %s\n",((rfnode_pkt*)snip->data)->name);
+//			printf("new_device  : %u\n",((rfnode_pkt*)snip->data)->new_device);
+//			break;
+//		case GNRC_NETTYPE_IPV6://FROM ipv6_hdr_print.c
+//		    printf("source address: %s\n", ipv6_addr_to_str(addr_str, &((ipv6_hdr_t *)snip->data)->src,
+//		            sizeof(addr_str)));
+//			break;
+//		default:
+//			break;
+//        }
+//        snip = snip->next;
+//    }
+//    gnrc_pktbuf_release(pkt);
+//}
+//void* rfgateway_udp_eventloop(void* arg)
+//{
+//    (void)arg;
+//    msg_t msg, reply;
+//    msg_t msg_queue[RFNODE_UDPTHREAD_MSG_QUEUE_SIZE];
+//    msg_init_queue(msg_queue, RFNODE_UDPTHREAD_MSG_QUEUE_SIZE);
+//    reply.content.value = (uint32_t)(-ENOTSUP);
+//    reply.type = GNRC_NETAPI_MSG_TYPE_ACK;
+//    while (1) {
+//        msg_receive(&msg);
+//        switch (msg.type) {
+//            case GNRC_NETAPI_MSG_TYPE_RCV:
+//                puts("RFNODE_UDP_EVENTLOOP: data received:");
+//                rfgateway_udp_get((gnrc_pktsnip_t *)msg.content.ptr);
+//                break;
+//            case GNRC_NETAPI_MSG_TYPE_SND:
+//                puts("RFNODE_UDP_EVENTLOOP: data to send:");
+//                break;
+//            case GNRC_NETAPI_MSG_TYPE_GET:
+//            case GNRC_NETAPI_MSG_TYPE_SET:
+//                msg_reply(&msg, &reply);
+//                break;
+//            default:
+//                puts("RFNODE_UDP_EVENTLOOP: received something unexpected");
+//                break;
+//        }
+//    }
+//    return NULL; // Never reached
+//}
+//kernel_pid_t rfgateway_udpthread_init(void)
+//{
+//	if(_rfgateway_udpthread_pid ==  KERNEL_PID_UNDEF){
+//		_rfgateway_udpthread_pid = thread_create(rfgateway_udpthread_stack, sizeof(rfgateway_udpthread_stack),RFNODE_UDPTHREAD_PRIO,
+//				THREAD_CREATE_STACKTEST, rfgateway_udp_eventloop, NULL, "rfnode_udp_rec");
+//	}
+//	return _rfgateway_udpthread_pid;
+//}
+//kernel_pid_t rfgateway_udpthread_getpid(void)
+//{
+//	return _rfgateway_udpthread_pid;
+//}
+//void rfgateway_udpserver_start(uint32_t port)
+//{
+//    if (gatewayserver.pid != KERNEL_PID_UNDEF) {
+//        printf("Error: server already running on port %d\n",
+//              (int) gatewayserver.demux_ctx);
+//        return;
+//    }
+//    if (port == 0) {
+//        puts("Error: invalid port specified");
+//        return;
+//    }
+//    gatewayserver.pid = rfgateway_udpthread_init();
+//    gatewayserver.demux_ctx = (uint32_t)port;
+//    gnrc_netreg_register(GNRC_NETTYPE_UDP, &gatewayserver);
+//    printf("Success: started UDP server on port %d\n",(int) port);
+//}
+//void rfgateway_udpserver_stop(void)
+//{
+//    /* check if server is running at all */
+//    if (gatewayserver.pid == KERNEL_PID_UNDEF) {
+//        printf("Error: server was not running\n");
+//        return;
+//    }
+//    /* stop server */
+//    gnrc_netreg_unregister(GNRC_NETTYPE_UDP, &gatewayserver);
+//    gatewayserver.pid = KERNEL_PID_UNDEF;
+//    puts("Success: stopped UDP server");
+//}
+//int sndpkt(int argc, char **argv)
+//{
+//	if (argc != 12) printf(
+//			"Not enough arguments!Usage:\n1: addr\n2: msg\n3: cnt\n4: data->val[0]\n5: data -> val[1]\n6: data ->val[2]\n7: data->unit\n8: data->scale\n9: name\n10: new_device");
+//	printf("sending pkt to %s!\n", argv[1]);
+//	rfnode_pkt pkttemp;
+//	rfnode_pkt* pkt = &pkttemp;
+//	/**<Fill out pkt values*/
+//	pkt->msg = (pkt_msg)atoi(argv[2]);
+//	pkt->cnt = (uint16_t)atoi(argv[3]);
+//	pkt->data.val[0] = (int16_t)atoi(argv[4]);
+//	pkt->data.val[1] = (int16_t)atoi(argv[5]);
+//	pkt->data.val[2] = (int16_t)atoi(argv[6]);
+//	pkt->data.unit = (uint8_t)atoi(argv[7]);
+//	pkt->data.scale = (int8_t)atoi(argv[8]);
+//	strcpy(pkt->name, argv[9]);
+//	pkt->new_device = (uint8_t)atoi(argv[10]);
+//
+//    ipv6_addr_t addr;
+//    if (ipv6_addr_from_str(&addr, argv[1]) == NULL) {
+//        puts("Error: unable to parse destination address");
+//        return -1;
+//    }
+//    rfnode_udpsend(addr, (uint16_t) 12345,(char*) pkt, 1,
+//                     (unsigned int) 1000000);
+//    return 0;
+//}

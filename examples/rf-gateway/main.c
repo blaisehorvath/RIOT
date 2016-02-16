@@ -77,6 +77,7 @@ static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PI
 #define RFNODE_UDPTHREAD_MSG_QUEUE_SIZE 8
 #define RFNODE_UDPTHREAD_STACKSIZE (THREAD_STACKSIZE_MAIN)
 #define RFNODE_UDPTHREAD_PRIO 6
+#define GNRC_NETTYPE_RFPKT GNRC_NETTYPE_NUMOF+2
 //					END OF OUR DEFINES
 
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
@@ -94,7 +95,7 @@ static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
     char addr_str[IPV6_ADDR_MAX_STR_LEN];
     while (snip != NULL) {
         switch (snip->type){
-		case GNRC_NETTYPE_UNDEF:// Handle the state machine here.
+		case GNRC_NETTYPE_RFPKT:// Handle the state machine here.
 			printf("msg         : %d\n",((rfnode_pkt*)snip->data)->msg);
 			printf("cnt         : %u\n",((rfnode_pkt*)snip->data)->cnt);
 			printf("data.val[0] : %d\n",((rfnode_pkt*)snip->data)->data.val[0]);
@@ -198,7 +199,7 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
     for (unsigned int i = 0; i < num; i++) {
         gnrc_pktsnip_t *payload, *udp, *ip;
         /* allocate payload */
-        payload = gnrc_pktbuf_add(NULL, data, /*strlen(data)*/sizeof(rfnode_pkt), GNRC_NETTYPE_UNDEF);
+        payload = gnrc_pktbuf_add(NULL, data, /*strlen(data)*/sizeof(rfnode_pkt), GNRC_NETTYPE_RFPKT);
         if (payload == NULL) {
             puts("Error: unable to copy data to packet buffer");
             return;
