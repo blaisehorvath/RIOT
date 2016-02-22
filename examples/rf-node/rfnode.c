@@ -75,7 +75,7 @@ void snd_rfnode_pkt_to_root(rfnode_pkt* pkt)
 {
 	puts("sensing pkt do dodag root");
     ipv6_addr_t addr;
-    if (ipv6_addr_from_str(&addr, "fe80::01") == NULL) {
+    if (ipv6_addr_from_str(&addr, "::") == NULL) {
         puts("Error: unable to parse destination address");
         return;
     }
