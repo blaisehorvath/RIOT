@@ -106,7 +106,7 @@ kernel_pid_t _rfnode_udpthread_pid = KERNEL_PID_UNDEF;
 			printf("data.scale : %d\n",((rfnode_pkt*)snip->data)->data.scale);
 			printf("name        : %s\n",((rfnode_pkt*)snip->data)->name);
 			printf("new_device  : %u\n",((rfnode_pkt*)snip->data)->new_device);
-			printf("pkt_cnt  : %u\n",((rfnode_pkt*)snip->data)->pkt_cnt);
+			printf("pkt_cnt  : %u\n",(unsigned int)((rfnode_pkt*)snip->data)->pkt_cnt);
 			break;
 		case GNRC_NETTYPE_IPV6://FROM ipv6_hdr_print.c
 		    printf("Got pkt!source address: %s\n", ipv6_addr_to_str(addr_str, &((ipv6_hdr_t *)snip->data)->src,

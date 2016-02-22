@@ -371,7 +371,7 @@ int sndpkt_dodagroot(int argc, char **argv)
 	rfnode_pkt* pkt = &pkttemp;
 	strcpy(pkt->name, "faszfasz");
     ipv6_addr_t addr;
-    if (ipv6_addr_from_str(&addr, "fe80::01") == NULL) {
+    if (ipv6_addr_from_str(&addr, "2001:db8::1") == NULL) {
         puts("Error: unable to parse destination address");
         return -1;
     }
