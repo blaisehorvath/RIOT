@@ -46,6 +46,7 @@ typedef struct {
 	phydat_t data;      /**< Measured / current data */
 	char name[20];
 	uint8_t new_device; /**< New sensor on the node side if true, request of a GET_SENSACT_LIST */
+	uint32_t pkt_cnt;
 } rfnode_pkt;
 
 int rfnode_statemachine(rfnode_pkt* ,rfnode_pkt* );

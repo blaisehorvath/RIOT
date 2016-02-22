@@ -39,6 +39,7 @@ static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PI
 //static char rfgateway_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
 //kernel_pid_t _rfgateway_udpthread_pid = KERNEL_PID_UNDEF;
 static char rfnode_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
+volatile static uint32_t last_pkt_cnt = 0;
 kernel_pid_t _rfnode_udpthread_pid = KERNEL_PID_UNDEF;
 /**
 	@par The following function sets up our node doing the following things:
@@ -99,7 +100,7 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
     for (unsigned int i = 0; i < num; i++) {
         gnrc_pktsnip_t *payload, *udp, *ip;
         /* allocate payload */
-        payload = gnrc_pktbuf_add(NULL, data, sizeof(rfnode_pkt), GNRC_NETTYPE_RFPKT);
+        payload = gnrc_pktbuf_add(NULL, data, sizeof(rfnode_pkt), GNRC_NETTYPE_UNDEF);
         if (payload == NULL) {
             puts("Error: unable to copy data to packet buffer");
             return;
@@ -243,6 +244,7 @@ int rfnode_statemachine(rfnode_pkt* pkt,rfnode_pkt* pkt_back)
 		return 0;
 		break;
 	}
+	pkt_back->pkt_cnt = pkt->pkt_cnt;// For debugging the multiple pkts problem.
 	return 1; // If we should answer then the flow arrives here, it escapes with 0 on error
 }
 /**
@@ -256,9 +258,12 @@ void rfnode_udp_get(gnrc_pktsnip_t *pkt)
 	rfnode_pkt pkt_back;
     gnrc_pktsnip_t *snip = pkt;
     while (snip != NULL) {
-        if (snip->type == GNRC_NETTYPE_RFPKT ) {
-        		answer = rfnode_statemachine((rfnode_pkt*)snip->data, &pkt_back);/// Handle the state machine here.
-                printf("data arrived!"); 
+        if (snip->type == GNRC_NETTYPE_UNDEF ) {
+        		if(last_pkt_cnt !=((rfnode_pkt*)snip->data)->pkt_cnt){ //Workaround for multiple pkt problem
+					answer = rfnode_statemachine((rfnode_pkt*)snip->data, &pkt_back);/// Handle the state machine here.
+					printf("data arrived!");
+					last_pkt_cnt = ((rfnode_pkt*)snip->data)->pkt_cnt; //Workaround for multiple pkt problem
+        		}
         }
         snip = snip->next;
     }
@@ -283,7 +288,7 @@ void* rfnode_udp_eventloop(void* arg)
         msg_receive(&msg);
         switch (msg.type) {
             case GNRC_NETAPI_MSG_TYPE_RCV:
-                puts("RFNODE_UDP_EVENTLOOP: data received:");
+                //puts("RFNODE_UDP_EVENTLOOP: data received:");
                 rfnode_udp_get((gnrc_pktsnip_t *)msg.content.ptr);
                 break;
             case GNRC_NETAPI_MSG_TYPE_SND:

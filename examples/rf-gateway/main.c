@@ -68,7 +68,8 @@
 #include "xtimer.h"
 //END OF TEMP INCLUDES
 #include "phydat.h"
-#include "rfnode.h"
+#include "../rf-stuff/rfnode.h"
+//#include "rfnode.h"
 //FROM ipv6_hdr_print.c
 #include "net/ipv6/hdr.h"
 static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
@@ -87,7 +88,7 @@ static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 //*********************************OUR OWN EVENTLOOP****************************************//
 static char rfnode_udpthread_stack[RFNODE_UDPTHREAD_STACKSIZE];
 kernel_pid_t _rfnode_udpthread_pid = KERNEL_PID_UNDEF;
-static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
+/*static*/ void rfnode_udp_get(gnrc_pktsnip_t *pkt)
 {
     //int snips = 0;
     //int size = 0;
@@ -95,7 +96,7 @@ static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
     char addr_str[IPV6_ADDR_MAX_STR_LEN];
     while (snip != NULL) {
         switch (snip->type){
-		case GNRC_NETTYPE_RFPKT:// Handle the state machine here.
+		case GNRC_NETTYPE_UNDEF:// Handle the state machine here.
 			printf("msg         : %d\n",((rfnode_pkt*)snip->data)->msg);
 			printf("cnt         : %u\n",((rfnode_pkt*)snip->data)->cnt);
 			printf("data.val[0] : %d\n",((rfnode_pkt*)snip->data)->data.val[0]);
@@ -105,6 +106,7 @@ static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
 			printf("data.scale : %d\n",((rfnode_pkt*)snip->data)->data.scale);
 			printf("name        : %s\n",((rfnode_pkt*)snip->data)->name);
 			printf("new_device  : %u\n",((rfnode_pkt*)snip->data)->new_device);
+			printf("pkt_cnt  : %u\n",((rfnode_pkt*)snip->data)->pkt_cnt);
 			break;
 		case GNRC_NETTYPE_IPV6://FROM ipv6_hdr_print.c
 		    printf("Got pkt!source address: %s\n", ipv6_addr_to_str(addr_str, &((ipv6_hdr_t *)snip->data)->src,
@@ -119,7 +121,7 @@ static void rfnode_udp_get(gnrc_pktsnip_t *pkt)
     }
     gnrc_pktbuf_release(pkt);
 }
-static void* rfnode_udp_eventloop(void* arg)
+/*static*/ void* rfnode_udp_eventloop(void* arg)
 {
     (void)arg;
     msg_t msg, reply;
@@ -199,7 +201,7 @@ void rfnode_udpsend(ipv6_addr_t addr, uint16_t portin, char *data, unsigned int 
     for (unsigned int i = 0; i < num; i++) {
         gnrc_pktsnip_t *payload, *udp, *ip;
         /* allocate payload */
-        payload = gnrc_pktbuf_add(NULL, data, /*strlen(data)*/sizeof(rfnode_pkt), GNRC_NETTYPE_RFPKT);
+        payload = gnrc_pktbuf_add(NULL, data, /*strlen(data)*/sizeof(rfnode_pkt), GNRC_NETTYPE_UNDEF);
         if (payload == NULL) {
             puts("Error: unable to copy data to packet buffer");
             return;
@@ -247,7 +249,7 @@ int sndpkt(int argc, char **argv)
 	pkt->data.scale = (int8_t)atoi(argv[8]);
 	strcpy(pkt->name, argv[9]);
 	pkt->new_device = (uint8_t)atoi(argv[10]);
-
+	pkt->pkt_cnt = (uint32_t)atoi(argv[11]);
     ipv6_addr_t addr;
     if (ipv6_addr_from_str(&addr, argv[1]) == NULL) {
         puts("Error: unable to parse destination address\n");
