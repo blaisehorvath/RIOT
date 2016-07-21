@@ -4,8 +4,7 @@ ifneq (,$(filter saul_gpio,$(USEMODULE)))
   SRC += gpio_saul.c
 endif
 ifneq (,$(filter saul_bme280,$(USEMODULE)))
-  SRC += saul_bme280.c
-  $(warning lofasz)
+  SRC += bme280_saul.c
 endif
 
 include $(RIOTBASE)/Makefile.base
