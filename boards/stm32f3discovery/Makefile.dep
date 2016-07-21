@@ -4,4 +4,5 @@ ifneq (,$(filter cc110x,$(USEMODULE)))
 endif
 ifneq (,$(filter saul_default,$(USEMODULE)))
   USEMODULE += saul_gpio
+  USEMODULE += saul_bme280
 endif
