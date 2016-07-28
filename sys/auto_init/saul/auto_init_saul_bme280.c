@@ -50,10 +50,12 @@ void auto_init_bme280(void){
     else {
 
     	/* Checking the device id if it's successfully initialized */
-
-        printf("I2C_%i successfully initialized as master!\n", i2c_dev);
+        //printf("I2C_%i successfully initialized as master!\n", i2c_dev);
+        DEBUG("asdasd");
         char data[BUFSIZE];
+        DEBUG("fasz");
         res = i2c_read_regs(i2c_dev, (uint8_t)addr, (uint8_t)reg, data, length);
+        DEBUG("fasz2");
 
         int n = sizeof(data) / sizeof(int);
         unsigned int device_id = (unsigned int)data[0];

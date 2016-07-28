@@ -26,7 +26,7 @@
 #include "gpio_params.h"
 #include "periph/gpio.h"
 
-#define ENABLE_DEBUG (1)
+#define ENABLE_DEBUG (0)
 #include "debug.h"
 
 /**

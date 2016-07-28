@@ -34,22 +34,22 @@ static int read(void *dev, phydat_t *res)
 {
     /*BOSCH code*/
 
-	s32 results = bme280_data_readout_template();
+	//s32 results = bme280_data_readout_template();
 
 
 	/*RIOT code*/
-	res->val[0] = 0;
+	/*res->val[0] = 0;
     memset(&(res->val[1]), 0, 2 * sizeof(int16_t));
     res->unit = UNIT_BOOL;
     res->scale = 0;
     DEBUG("READ FROM BME280\n");
-    return 1;
+    */return 1;
 }
 
 static int write(void *dev, phydat_t *state)
 {
-	state->val[0] = 1;
-    return 1;
+/*	state->val[0] = 1;
+    */return 1;
     DEBUG("WRITE TO BME280\n");
 }
 
