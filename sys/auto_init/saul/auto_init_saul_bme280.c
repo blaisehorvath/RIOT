@@ -14,8 +14,7 @@
 /**
  * @brief: Hard coded device variables
  */
-#define i2c_dev 0
-#define i2c_speed 1
+
 #define addr 0x77 //uint 119
 #define reg 0xd0 //uint 208
 #define length 1 /* read 1 byte*/
@@ -23,16 +22,17 @@
 #define ENABLE_DEBUG (1)
 #include "debug.h"
 
-//extern saul_driver_t i2c_saul_driver;
-//
-//static i2c_t bme_280_dev_id = 0; /* i2c device id, equivalent to the value of the i2c_dev variable */
-//
-//static saul_reg_t bme280 = {
-//	.next = 0,
-//	.dev = &bme_280_dev_id,
-//	.driver = &i2c_saul_driver,
-//	.name = "BME280"
-//};
+extern saul_driver_t i2c_saul_driver;
+static i2c_t i2c_dev = 0;
+static i2c_t i2c_speed = 1;
+static i2c_t bme_280_dev_id = 0; /* i2c device id, equivalent to the value of the i2c_dev variable */
+static char data[BUFSIZE];
+static saul_reg_t bme280 = {
+	.next = 0,
+	.dev = &bme_280_dev_id,
+	.driver = &i2c_saul_driver,
+	.name = "BME280"
+};
 
 void auto_init_bme280(void){
 //
@@ -40,7 +40,6 @@ void auto_init_bme280(void){
     DEBUG("auto init bme280 SAUL\n");
 //
     int res = i2c_init_master(i2c_dev, i2c_speed);
-    DEBUG("res:%d",res);
     if (res == -1) {
         puts("Error: Init: Given device not available");
     }
@@ -51,30 +50,21 @@ void auto_init_bme280(void){
 
 //    	/* Checking the device id if it's successfully initialized */
     	printf("I2C_%i successfully initialized as master!\n", i2c_dev);
-
-        DEBUG("asdasd");
-        char data[BUFSIZE];
-        data[0] = 1;
-        data[1] = data[0];
-        DEBUG("fasz");
-        return;
         res = i2c_read_regs(i2c_dev, (uint8_t)addr, (uint8_t)reg, data, length);
-        DEBUG("fasz2");
 
-//
-//        int n = sizeof(data) / sizeof(int);
-//        unsigned int device_id = (unsigned int)data[0];
-//
-//        if (n == 32 && device_id == (unsigned int)96) {
-//    		DEBUG("The ID of the BME280 device is: 0x%02x \n", device_id);
-//
-//    		/* adding the device to the SAUL*/
-//
-//    		saul_reg_add(&(bme280));
-//
-//        } else {
-//        	printf("ERROR: BME280 device cannot be accessed!\n");
-//        }
+        int n = sizeof(data) / sizeof(int);
+        unsigned int device_id = (unsigned int)data[0];
+
+        if (n == 32 && device_id == (unsigned int)96) {
+    		DEBUG("The ID of the BME280 device is: 0x%02x \n", device_id);
+
+    		/* adding the device to the SAUL*/
+
+    		saul_reg_add(&(bme280));
+
+        } else {
+        	printf("ERROR: BME280 device cannot be accessed!\n");
+        }
     }
 }
 

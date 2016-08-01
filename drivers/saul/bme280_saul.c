@@ -23,34 +23,44 @@
 #include "saul.h"
 #include "phydat.h"
 #include "periph/gpio.h"
+#include "periph/i2c.h"
+#include "xtimer.h"
 
 #include "bme280.h"
 
-#define ENABLE_DEBUG (1)
 #include "debug.h"
+#define ENABLE_DEBUG (1)
+
+
+#define addr BME280_I2C_ADDRESS2 //uint 119
+
+struct bme280_t bme280;
+s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
+s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
+void BME280_delay_msek(u32 msek);
 
 
 static int read(void *dev, phydat_t *res)
 {
-    /*BOSCH code*/
-
-	//s32 results = bme280_data_readout_template();
-
-
-	/*RIOT code*/
-	/*res->val[0] = 0;
-    memset(&(res->val[1]), 0, 2 * sizeof(int16_t));
-    res->unit = UNIT_BOOL;
-    res->scale = 0;
-    DEBUG("READ FROM BME280\n");
-    */return 1;
+	s32 v_data_uncomp_temp_s32 = 0 ; v_data_uncomp_temp_s32++;
+	s32 v_data_uncomp_pres_s32 = 0; v_data_uncomp_pres_s32++;
+	s32 v_data_uncomp_hum_s32 = 0 ; v_data_uncomp_hum_s32++;
+	bme280.bus_write = BME280_I2C_bus_write;
+	bme280.bus_read = BME280_I2C_bus_read;
+	bme280.dev_addr = BME280_I2C_ADDRESS2;
+	bme280.delay_msec = BME280_delay_msek;
+	DEBUG("bme280_init:%d",bme280_init(&bme280));
+	DEBUG("read everything:%d",bme280_read_uncomp_pressure_temperature_humidity(&v_data_uncomp_temp_s32,
+			&v_data_uncomp_pres_s32, &v_data_uncomp_hum_s32));
+	DEBUG("temp:%d\npres:%d\nhumidity:%d",v_data_uncomp_temp_s32,v_data_uncomp_pres_s32,v_data_uncomp_hum_s32 );
+	return 1;
 }
 
 static int write(void *dev, phydat_t *state)
 {
-/*	state->val[0] = 1;
-    */return 1;
-    DEBUG("WRITE TO BME280\n");
+	DEBUG("ANYÁD FASZA\n");
+/*	state->val[0] = 1;    */
+	return 0;
 }
 
 const saul_driver_t i2c_saul_driver = {
@@ -58,3 +68,22 @@ const saul_driver_t i2c_saul_driver = {
     .write = write,
     .type = SAUL_ACT_SWITCH,
 };
+
+s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+{
+	char res = 0;res++;
+	res = i2c_write_regs((i2c_t) 0, dev_addr, reg_addr, (char*)reg_data, cnt);
+	return 0;
+}
+
+s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+{
+	char res = 0;res++;
+	res = i2c_read_regs((i2c_t) 0, dev_addr, reg_addr, (char*)reg_data, cnt);
+	return 0;
+}
+void BME280_delay_msek(u32 msek)
+{
+	xtimer_usleep(msek*1000);
+	return;
+}

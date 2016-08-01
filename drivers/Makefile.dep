@@ -79,3 +79,6 @@ ifneq (,$(filter xbee,$(USEMODULE)))
   USEMODULE += xtimer
   USEMODULE += netif
 endif
+ifneq (,$(filter saul_bme280,$(USEMODULE)))
+  USEMODULE += xtimer
+endif
