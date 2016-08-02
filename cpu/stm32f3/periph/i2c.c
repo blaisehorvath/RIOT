@@ -32,7 +32,7 @@
 #include "periph_conf.h"
 #include "periph/i2c.h"
 
-#define ENABLE_DEBUG    (0)
+#define ENABLE_DEBUG    (1)
 #include "debug.h"
 
 /* guard file in case no I2C device is defined */

@@ -87,6 +87,7 @@ s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 
 s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
+	printf("***********dev:%#02x  reg:%#02x  dataptr:%#02x  cnt:%d\n",(unsigned int)dev_addr,(unsigned int)reg_addr,(unsigned int)reg_data,(unsigned int)cnt );
 	printf("BUS_READ!\n");
 	char res = 0;res++;
 	res = i2c_read_regs((i2c_t) 0, dev_addr, reg_addr, (char*)reg_data, cnt);

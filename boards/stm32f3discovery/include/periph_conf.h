@@ -216,12 +216,12 @@ extern "C" {
 #define I2C_0_ERR_IRQ       I2C1_ER_IRQn
 #define I2C_0_ERR_ISR       isr_i2c1_er
 /* I2C 0 pin configuration */
-#define I2C_0_SCL_PORT      GPIOA
-#define I2C_0_SCL_PIN       15
+#define I2C_0_SCL_PORT      GPIOB
+#define I2C_0_SCL_PIN       8
 #define I2C_0_SCL_AF        4
 #define I2C_0_SCL_CLKEN()   (RCC->AHBENR |= RCC_AHBENR_GPIOBEN)
-#define I2C_0_SDA_PORT      GPIOA
-#define I2C_0_SDA_PIN       14
+#define I2C_0_SDA_PORT      GPIOB
+#define I2C_0_SDA_PIN       9
 #define I2C_0_SDA_AF        4
 #define I2C_0_SDA_CLKEN()   (RCC->AHBENR |= RCC_AHBENR_GPIOBEN)
 
