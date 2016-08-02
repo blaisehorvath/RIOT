@@ -114,7 +114,7 @@ BME280_RETURN_FUNCTION_TYPE bme280_init(struct bme280_t *bme280)
 	if (com_rslt == BME280_CHIP_ID_READ_SUCCESS) {
 		/* readout bme280 calibparam structure */
 		printf("*****************IN CALIB\n");//DEBUG
-		//com_rslt += bme280_get_calib_param();DEBUG
+		com_rslt += bme280_get_calib_param();
 	}
 	return com_rslt;
 }
