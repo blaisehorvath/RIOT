@@ -127,6 +127,21 @@ test_tui() {
 # now comes the actual actions
 #
 do_flash() {
+    # The flasherscript tries to flash the device using st-link 2.0 by default
+    # but if the STLINKV make variable is set, it will flash with the given STLINK version
+    
+    # IF OLD STLINK VERSION
+    if [ "$STLINKV" = "20" ]; then
+        OPENOCD_CONFIG="$RIOTBASE/dist/tools/openocd/stm32f3discovery-stlinkv20.cfg"
+        echo "!!!!!!!!!!!!!! CONFIG FILE IS: $OPENOCD_CONFIG"
+    fi
+    
+    # IF NEW STLINK VERSION
+    if [ "$STLINKV" = "21" ]; then
+        OPENOCD_CONFIG="$RIOTBASE/dist/tools/openocd/stm32f3discovery-stlinkv21.cfg"
+        echo "!!!!!!!!!!!!!! CONFIG FILE IS: $OPENOCD_CONFIG"
+    fi
+    
     test_config
     test_hexfile
     if [ -n "${PRE_FLASH_CHECK_SCRIPT}" ]; then
@@ -138,7 +153,7 @@ do_flash() {
         fi
     fi
     # flash device
-    sh -c "${OPENOCD} -f '${OPENOCD_CONFIG}' \
+    sh -c "${OPENOCD} -f "$OPENOCD_CONFIG" \
             ${OPENOCD_EXTRA_INIT} \
             -c 'tcl_port 0' \
             -c 'telnet_port 0' \
