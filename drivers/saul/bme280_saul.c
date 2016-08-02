@@ -19,6 +19,7 @@
  */
 
 #include <string.h>
+#include <stdint.h>
 
 #include "saul.h"
 #include "stdio.h"
@@ -31,6 +32,7 @@
 
 #include "debug.h"
 #define ENABLE_DEBUG (1)
+#include "inttypes.h"
 
 struct bme280_t bme280;
 s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
@@ -40,32 +42,38 @@ void BME280_delay_msek(u32 msek);
 
 static int read(void *dev, phydat_t *res)
 {
-	puts("dasfasc");
-	printf("faszfasz");
     res->val[0] = 16;
     res->val[1] = 17;
     res->val[2] = 18;
-    res->unit = UNIT_BOOL;
+    res->unit = UNIT_NONE;
     res->scale = 0;
 	s32 v_data_uncomp_temp_s32 = 0 ; v_data_uncomp_temp_s32++;
 	s32 v_data_uncomp_pres_s32 = 0; v_data_uncomp_pres_s32++;
 	s32 v_data_uncomp_hum_s32 = 0 ; v_data_uncomp_hum_s32++;
+	s32 comp_temp_s32 = 0;
+	s32 comp_pres_s32 = 0;
+	s32 comp_humi_s32 = 0;
 	bme280.bus_write = BME280_I2C_bus_write;
 	bme280.bus_read = BME280_I2C_bus_read;
 	bme280.dev_addr = BME280_I2C_ADDRESS2;
 	bme280.delay_msec = BME280_delay_msek;
-	printf("init beofre");
 	s32 com_rslt = bme280_init(&bme280);// ERROR HERE!!!
 	com_rslt += bme280_set_power_mode(BME280_NORMAL_MODE);
-	com_rslt += bme280_set_oversamp_humidity(BME280_OVERSAMP_1X);
-	com_rslt += bme280_set_oversamp_pressure(BME280_OVERSAMP_2X);
+	com_rslt += bme280_set_oversamp_humidity(BME280_OVERSAMP_4X);
+	com_rslt += bme280_set_oversamp_pressure(BME280_OVERSAMP_4X);
 	com_rslt += bme280_set_oversamp_temperature(BME280_OVERSAMP_4X);
 	com_rslt += bme280_set_standby_durn(BME280_STANDBY_TIME_1_MS);
-	printf("init after");
-	bme280_read_uncomp_pressure_temperature_humidity(&v_data_uncomp_temp_s32,
-				&v_data_uncomp_pres_s32, &v_data_uncomp_hum_s32);
-	printf("temp:%ld\npres:%ld\nhum:%ld\n",v_data_uncomp_temp_s32,v_data_uncomp_pres_s32,v_data_uncomp_hum_s32);
-	printf("endofread");
+	bme280_read_uncomp_pressure_temperature_humidity(
+				&v_data_uncomp_pres_s32, &v_data_uncomp_temp_s32, &v_data_uncomp_hum_s32);
+	comp_temp_s32 = (s32)1000*(((double)bme280_compensate_temperature_int32(v_data_uncomp_temp_s32))/500 +24);
+	res->val[0] = (int16_t) comp_temp_s32;
+	res->scale = 3;
+	res->unit = 0;
+	comp_pres_s32 = bme280_compensate_pressure_int32(v_data_uncomp_pres_s32);
+	res->val[1] = (int16_t) (comp_pres_s32/1000);
+	comp_humi_s32 = (s32) ((double)bme280_compensate_humidity_int32(v_data_uncomp_hum_s32))/1024;
+	res->val[2] = (int16_t) comp_humi_s32;
+	printf("temp:%d\npres:%d\nhum:%d\n",res->val[0],res->val[1],res->val[2]);
 	return 1;
 }
 
@@ -83,36 +91,26 @@ const saul_driver_t i2c_saul_driver = {
 
 s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
-	printf("BUS_WRITE!\n");
 	char res = 0;res++;
 	res = i2c_write_regs((i2c_t) 0, dev_addr, reg_addr, (char*)reg_data, cnt);
-	printf("BUS_WRITEEND!\n");
 	return 0;
 }
 
 s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 {
-	printf("***********dev:%#02x  reg:%#02x  dataptr:%#02x  cnt:%d\n",(unsigned int)dev_addr,(unsigned int)reg_addr,(unsigned int)reg_data,(unsigned int)cnt );
-	printf("BUS_READ!\n");
 	char res = 0;res++;
 	if (cnt == 1) {
 		res = i2c_read_regs((i2c_t) 0, dev_addr, reg_addr, (char*)reg_data, cnt);
 	} else {
 		int i;
 		for (i = 0; i < cnt; ++i) {
-			printf("\n ################BEFORE# \n reg_addr %#010x  -  reg_data %#010x reg_data_value %i >>>>> %i \n#############\n" , (int)reg_addr+i, (int)(reg_data+i), (int)(*reg_data+i),i );
 			res = i2c_read_reg((i2c_t)0, dev_addr, reg_addr+i, (char*)(&reg_data[i]));
-			printf("\n ################YOLO# \n reg_addr %#010x  -  reg_data %#010x reg_data_value %i >>>>> %i \n#############\n" , (int)reg_addr+i, (int)(reg_data+i), (int)(*reg_data+i),i );
 		}
 	}
-
-	printf("BUS_READEND!\n");
 	return 0;
 }
 void BME280_delay_msek(u32 msek)
 {
-	printf("BEFORE DELAY");
 	xtimer_usleep(msek*1000);
-	printf("AFTER DELAY");
 	return;
 }

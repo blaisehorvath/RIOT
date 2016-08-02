@@ -19,7 +19,7 @@
 #define reg 0xd0 //uint 208
 #define length 1 /* read 1 byte*/
 
-#define ENABLE_DEBUG (1)
+#define ENABLE_DEBUG (0)
 #include "debug.h"
 
 extern saul_driver_t i2c_saul_driver;
@@ -49,7 +49,7 @@ void auto_init_bme280(void){
     else {
 
 //    	/* Checking the device id if it's successfully initialized */
-    	printf("I2C_%i successfully initialized as master!\n", i2c_dev);
+    	DEBUG("I2C_%i successfully initialized as master!\n", i2c_dev);
         res = i2c_read_regs(i2c_dev, (uint8_t)addr, (uint8_t)reg, data, length);
 
         int n = sizeof(data) / sizeof(int);

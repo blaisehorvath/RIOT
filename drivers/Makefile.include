@@ -56,6 +56,5 @@ ifneq (,$(filter enc28j60,$(USEMODULE)))
     USEMODULE_INCLUDES += $(RIOTBASE)/drivers/enc28j60/include
 endif
 ifneq (,$(filter saul_bme280,$(USEMODULE)))
-$(warning ANYÁDLÓÓFAAAASZ)
     USEMODULE_INCLUDES += $(RIOTBASE)/drivers/saul/include
 endif

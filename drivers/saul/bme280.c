@@ -53,7 +53,7 @@
 
 #include "bme280.h"
 static struct bme280_t *p_bme280; /**< pointer to BME280 */
-#include <stdio.h>
+
 /*!
  *	@brief This function is used for initialize
  *	the bus read and bus write functions
@@ -81,7 +81,6 @@ static struct bme280_t *p_bme280; /**< pointer to BME280 */
 */
 BME280_RETURN_FUNCTION_TYPE bme280_init(struct bme280_t *bme280)
 {
-	printf("*******************IN INIT\n");//DEBUG
 	/* used to return the communication result*/
 	BME280_RETURN_FUNCTION_TYPE com_rslt = ERROR;
 	u8 v_data_u8 = BME280_INIT_VALUE;
@@ -91,7 +90,7 @@ BME280_RETURN_FUNCTION_TYPE bme280_init(struct bme280_t *bme280)
 	p_bme280 = bme280;
 
 	while (v_chip_id_read_count > 0) {
-		printf("*******************IN IDREAD %d\n",v_chip_id_read_count);//DEBUG
+
 		/* read Chip Id */
 		com_rslt = p_bme280->BME280_BUS_READ_FUNC(p_bme280->dev_addr,
 				BME280_CHIP_ID_REG, &v_data_u8,
@@ -102,7 +101,6 @@ BME280_RETURN_FUNCTION_TYPE bme280_init(struct bme280_t *bme280)
 		v_chip_id_read_count--;
 		/* Delay added concerning the low speed of power up system to
 		facilitate the proper reading of the chip ID */
-		printf("*******************IN IDREAD BEFORE DELAY!!!\n");//DEBUG
 		p_bme280->delay_msec(BME280_REGISTER_READ_DELAY);
 	}
 	/*assign chip ID to the global structure*/
@@ -110,10 +108,9 @@ BME280_RETURN_FUNCTION_TYPE bme280_init(struct bme280_t *bme280)
 	/*com_rslt status of chip ID read*/
 	com_rslt = (v_chip_id_read_count == BME280_INIT_VALUE) ?
 			BME280_CHIP_ID_READ_FAIL : BME280_CHIP_ID_READ_SUCCESS;
-	printf("********************BEFORE CALIB\n");//DEBUG
+
 	if (com_rslt == BME280_CHIP_ID_READ_SUCCESS) {
 		/* readout bme280 calibparam structure */
-		printf("*****************IN CALIB\n");//DEBUG
 		com_rslt += bme280_get_calib_param();
 	}
 	return com_rslt;
