@@ -177,24 +177,24 @@ extern "C" {
 #define SPI_0_MOSI_PORT_CLKEN() (RCC->AHBENR |= RCC_AHBENR_GPIOAEN)
 
 /* SPI 1 device config */
-#define SPI_1_DEV               SPI3
-#define SPI_1_CLKEN()           (RCC->APB1ENR |= RCC_APB1ENR_SPI3EN)
-#define SPI_1_CLKDIS()          (RCC->APB1ENR &= ~RCC_APB1ENR_SPI3EN)
-#define SPI_1_IRQ               SPI3_IRQn
-#define SPI_1_IRQ_HANDLER       isr_spi3
+#define SPI_1_DEV               SPI2
+#define SPI_1_CLKEN()           (RCC->APB1ENR |= RCC_APB1ENR_SPI2EN)
+#define SPI_1_CLKDIS()          (RCC->APB1ENR &= ~RCC_APB1ENR_SPI2EN)
+#define SPI_1_IRQ               SPI2_IRQn
+#define SPI_1_IRQ_HANDLER      isr_spi2
 /* SPI 1 pin configuration */
-#define SPI_1_SCK_PORT          GPIOC
-#define SPI_1_SCK_PIN           10
-#define SPI_1_SCK_AF            6
-#define SPI_1_SCK_PORT_CLKEN()  (RCC->AHBENR |= RCC_AHBENR_GPIOCEN)
-#define SPI_1_MISO_PORT         GPIOC
-#define SPI_1_MISO_PIN          11
-#define SPI_1_MISO_AF           6
-#define SPI_1_MISO_PORT_CLKEN() (RCC->AHBENR |= RCC_AHBENR_GPIOCEN)
-#define SPI_1_MOSI_PORT         GPIOC
-#define SPI_1_MOSI_PIN          12
-#define SPI_1_MOSI_AF           6
-#define SPI_1_MOSI_PORT_CLKEN() (RCC->AHBENR |= RCC_AHBENR_GPIOCEN)
+#define SPI_1_SCK_PORT          GPIOB
+#define SPI_1_SCK_PIN           13
+#define SPI_1_SCK_AF            5
+#define SPI_1_SCK_PORT_CLKEN()  (RCC->AHBENR |= RCC_AHBENR_GPIOBEN)
+#define SPI_1_MISO_PORT         GPIOB
+#define SPI_1_MISO_PIN          14
+#define SPI_1_MISO_AF           5
+#define SPI_1_MISO_PORT_CLKEN() (RCC->AHBENR |= RCC_AHBENR_GPIOBEN)
+#define SPI_1_MOSI_PORT         GPIOB
+#define SPI_1_MOSI_PIN          15
+#define SPI_1_MOSI_AF           5
+#define SPI_1_MOSI_PORT_CLKEN() (RCC->AHBENR |= RCC_AHBENR_GPIOBEN)
 /** @} */
 
 /**
