@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #include "periph_conf.h"
-#include "periph/i2c.h"
+#include "periph/spi.h"
 
 #include "saul_reg.h"
 #include "saul/periph.h"
@@ -19,53 +19,86 @@
 #define reg 0xd0 //uint 208
 #define length 1 /* read 1 byte*/
 
+static	int spi_dev = SPI_0;
+#define	 spi_mode  SPI_CONF_FIRST_RISING
+#define	 spi_speed  SPI_SPEED_1MHZ
+#define port  0
+#define pin  1
+#define spi_cs  GPIO_PIN(port,pin)
+
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-extern saul_driver_t i2c_saul_driver;
-static i2c_t i2c_dev = 0;
-static i2c_t i2c_speed = 1;
-static i2c_t bme_280_dev_id = 0; /* i2c device id, equivalent to the value of the i2c_dev variable */
-static char data[BUFSIZE];
+extern saul_driver_t spi_saul_driver;
+//static i2c_t i2c_dev = 0;
+//static i2c_t i2c_speed = 1;
+//static i2c_t bme_280_dev_id = 0; /* i2c device id, equivalent to the value of the i2c_dev variable */
+//static char data[BUFSIZE];
+
 static saul_reg_t bme280 = {
 	.next = 0,
-	.dev = &bme_280_dev_id,
-	.driver = &i2c_saul_driver,
+	.dev = &spi_dev,
+	.driver = &spi_saul_driver,
 	.name = "BME280"
 };
 
-void auto_init_bme280(void){
-//
-//	/* Initializing the device */
-    DEBUG("auto init bme280 SAUL\n");
-//
-    int res = i2c_init_master(i2c_dev, i2c_speed);
-    if (res == -1) {
-        puts("Error: Init: Given device not available");
-    }
-    else if (res == -2) {
-        puts("Error: Init: Unsupported speed value");
-    }
-    else {
+int checkChipID(char* out);
 
-//    	/* Checking the device id if it's successfully initialized */
-    	DEBUG("I2C_%i successfully initialized as master!\n", i2c_dev);
-        res = i2c_read_regs(i2c_dev, (uint8_t)addr, (uint8_t)reg, data, length);
+void auto_init_bme280(void) {
+	int res;
+	/* Initializing the device */
+	spi_acquire(spi_dev);
+	res = spi_init_master(spi_dev, spi_mode, spi_speed);
+	spi_release(spi_dev);
+	if (res < 0) {
+	printf("spi_init_master: error initializing SPI_%i device (code %i)\n",
+			spi_dev, res);
+	}
+	res = gpio_init(spi_cs, GPIO_DIR_OUT, GPIO_PULLUP);
+	if (res < 0) {
+	printf("gpio_init: error initializing GPIO_%ld as CS line (code %i)\n",
+			(long)spi_cs, res);
+	}
+	gpio_set(spi_cs);
+	printf("SPI_%i successfully initialized as master, cs: GPIO_%ld, mode: %i, speed: %i\n", spi_dev, (long)spi_cs, spi_mode, spi_speed);
 
-        int n = sizeof(data) / sizeof(int);
-        unsigned int device_id = (unsigned int)data[0];
+	/*Reading the chip id*/
+	char in, out;
+	char nullas = 0;
 
-        if (n == 32 && device_id == (unsigned int)96) {
-    		DEBUG("The ID of the BME280 device is: 0x%02x \n", device_id);
+	int id = 0xd0;
+	in = id | 1<<7;
 
-    		/* adding the device to the SAUL*/
+	gpio_clear(spi_cs);
+	res = spi_transfer_bytes(spi_dev, &in, &out, 1);
+	res = spi_transfer_bytes(spi_dev, &nullas, &out, 1);
+	gpio_set(spi_cs);
 
-    		saul_reg_add(&(bme280));
+	res = checkChipID(&out);
 
-        } else {
-        	printf("ERROR: BME280 device cannot be accessed!\n");
-        }
-    }
+	// if the chipID is correct
+	if (res == 1) {
+		printf("BME280 detected!\n");
+
+		/* adding the device to the SAUL*/
+		saul_reg_add(&(bme280));
+	}
+	else {
+		printf("No BME280 found on SPI \n");
+	}
 }
+
+/**
+ * @brief: This function checks if the device's chip id the one thats in the datasheet
+ */
+int checkChipID (char* out) {
+	if ((int)*out == 0x60) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 
 #endif

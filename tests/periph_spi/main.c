@@ -227,7 +227,8 @@ int cmd_init_slave(int argc, char **argv)
 int cmd_transfer(int argc, char **argv)
 {
     int res;
-    char *hello = "Hello";
+    char temp=208;
+    //char *hello = "Hello";
 
     if (spi_master != 1) {
         puts("error: node is not initialized as master, please do so first");
@@ -238,13 +239,14 @@ int cmd_transfer(int argc, char **argv)
         puts("No data to transfer given, will transfer 'Hello' to device");
     }
     else {
-        hello = argv[1];
+    	temp =atoi(argv[1]);
+        //hello = argv[1];
     }
 
     /* do the actual data transfer */
     spi_acquire(spi_dev);
     gpio_clear(spi_cs);
-    res = spi_transfer_bytes(spi_dev, hello, buffer, strlen(hello));
+    res = spi_transfer_bytes(spi_dev, &temp, buffer, 1);
     gpio_set(spi_cs);
     spi_release(spi_dev);
 
@@ -255,7 +257,7 @@ int cmd_transfer(int argc, char **argv)
     }
     else {
         printf("Transfered %i bytes:\n", res);
-        print_bytes("MOSI", hello, res);
+        print_bytes("MOSI", &temp, res);
         print_bytes("MISO", buffer, res);
         return 0;
     }

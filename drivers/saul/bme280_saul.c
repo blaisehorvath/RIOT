@@ -83,7 +83,7 @@ static int write(void *dev, phydat_t *state)
 	return 0;
 }
 
-const saul_driver_t i2c_saul_driver = {
+const saul_driver_t spi_saul_driver = {
     .read = read,
     .write = write,
     .type = SAUL_CLASS_ANY,

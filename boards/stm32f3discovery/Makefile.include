@@ -8,7 +8,8 @@ PORT_DARWIN ?= $(shell ls -1 /dev/tty.SLAB_USBtoUART* | head -n 1)
 
 # pasted here by blaise (src: https://lists.riot-os.org/pipermail/users/2015-November/000468.html)
 ifneq (,$(filter gnrc_netif_default,$(USEMODULE)))
-    USEMODULE += cc110x gnrc_netdev2 gnrc_cc110x
+    #USEMODULE += cc110x gnrc_netdev2 gnrc_cc110x
+    USEMODULE += saul_bme280
 endif
 
 # setup serial terminal
