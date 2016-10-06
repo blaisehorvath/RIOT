@@ -1,5 +1,3 @@
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
-#pragma GCC diagnostic ignored "-Wunused-variable"
 /*
  * Copyright (C) 2015 Freie Universität Berlin
  *
@@ -28,189 +26,294 @@
 #include "phydat.h"
 #include "periph/gpio.h"
 #include "periph/spi.h"
-#include "xtimer.h"
-
-#include "bme280.h"
 
 #include "debug.h"
 #define ENABLE_DEBUG (1)
 #include "inttypes.h"
-
-#define spi_dev 0
 #define spi_cs GPIO_PIN(0,1)
+#define BME280_REGISTER_DIG_T1               0x88
+#define BME280_REGISTER_DIG_T2               0x8A
+#define BME280_REGISTER_DIG_T3               0x8C
 
-#define SPI_BUFFER_LEN 5
-#define BME280_ADDRESS_INDEX	2
-#define BME280_DATA_INDEX	1
-#define SPI_WRITE	0x7F
-#define SPI_READ	0x80
+#define BME280_REGISTER_DIG_P1               0x8E
+#define BME280_REGISTER_DIG_P2               0x90
+#define BME280_REGISTER_DIG_P3               0x92
+#define BME280_REGISTER_DIG_P4               0x94
+#define BME280_REGISTER_DIG_P5               0x96
+#define BME280_REGISTER_DIG_P6               0x98
+#define BME280_REGISTER_DIG_P7               0x9A
+#define BME280_REGISTER_DIG_P8               0x9C
+#define BME280_REGISTER_DIG_P9               0x9E
 
-char bme280_spi_write_byte (char masked_address, char* value);
-char bme280_spi_byte_transwer (char address);
-struct bme280_t bme280;
-s8 BME280_SPI_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
-s8 BME280_SPI_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
-void BME280_delay_msek(u32 msek);
+#define BME280_REGISTER_DIG_H1               0xA1
+#define BME280_REGISTER_DIG_H2               0xE1
+#define BME280_REGISTER_DIG_H3               0xE3
+#define BME280_REGISTER_DIG_H4               0xE4
+#define BME280_REGISTER_DIG_H5               0xE5
+#define BME280_REGISTER_DIG_H6               0xE7
 
+#define BME280_REGISTER_CHIPID              0xD0
+#define BME280_REGISTER_VERSION             0xD1
+#define BME280_REGISTER_SOFTRESET           0xE0
 
-static int read(void *dev, phydat_t *res)
+#define BME280_REGISTER_CAL26               0xE1  // R calibration stored in 0xE1-0xF0
+
+#define BME280_REGISTER_CONTROLHUMID        0xF2
+#define BME280_REGISTER_CONTROL             0xF4
+#define BME280_REGISTER_CONFIG              0xF5
+#define BME280_REGISTER_PRESSUREDATA        0xF7
+#define BME280_REGISTER_TEMPDATA            0xFA
+#define BME280_REGISTER_HUMIDDATA           0xFD
+typedef struct
 {
-	printf("chipid %i", (int)bme280_spi_byte_transwer(0xe0|SPI_READ));
-    res->val[0] = 16;
-    res->val[1] = 17;
-    res->val[2] = 18;
-    res->unit = UNIT_NONE;
-    res->scale = 0;
-	s32 v_data_uncomp_temp_s32 = 0 ; //v_data_uncomp_temp_s32++;
-	s32 v_data_uncomp_pres_s32 = 0; //v_data_uncomp_pres_s32++;
-	s32 v_data_uncomp_hum_s32 = 0 ; //v_data_uncomp_hum_s32++;
-	s32 comp_temp_s32 = 0;
-	s32 comp_pres_s32 = 0;
-	s32 comp_humi_s32 = 0;
-	bme280.bus_write = BME280_SPI_bus_write;
-	bme280.bus_read = BME280_SPI_bus_read;
-	bme280.dev_addr = BME280_I2C_ADDRESS2;
-	bme280.delay_msec = BME280_delay_msek;
-	s32 com_rslt = bme280_init(&bme280);// ERROR HERE!!!
-	com_rslt += bme280_set_power_mode(BME280_NORMAL_MODE);
-	com_rslt += bme280_set_oversamp_humidity(BME280_OVERSAMP_4X);
-	com_rslt += bme280_set_oversamp_pressure(BME280_OVERSAMP_4X);
-	com_rslt += bme280_set_oversamp_temperature(BME280_OVERSAMP_4X);
-	com_rslt += bme280_set_standby_durn(BME280_STANDBY_TIME_1_MS);
-	bme280_read_uncomp_pressure_temperature_humidity(&v_data_uncomp_pres_s32, &v_data_uncomp_temp_s32, &v_data_uncomp_hum_s32);
-	comp_temp_s32 = (s32)1000*(((double)bme280_compensate_temperature_int32(v_data_uncomp_temp_s32))/500 +24);
-	res->val[0] = (int16_t) comp_temp_s32;
-	res->scale = 3;
-	res->unit = 0;
-	comp_pres_s32 = bme280_compensate_pressure_int32(v_data_uncomp_pres_s32);
-	res->val[1] = (int16_t) (comp_pres_s32/1000);
-	comp_humi_s32 = (s32) ((double)bme280_compensate_humidity_int32(v_data_uncomp_hum_s32))/1024;
-	res->val[2] = (int16_t) comp_humi_s32;
-	printf("temp:%d\npres:%d\nhum:%d\n",res->val[0],res->val[1],res->val[2]);
-	return 1;
-}
+	uint16_t dig_T1;
+	int16_t  dig_T2;
+	int16_t  dig_T3;
+
+	uint16_t dig_P1;
+	int16_t  dig_P2;
+	int16_t  dig_P3;
+	int16_t  dig_P4;
+	int16_t  dig_P5;
+	int16_t  dig_P6;
+	int16_t  dig_P7;
+	int16_t  dig_P8;
+	int16_t  dig_P9;
+
+	uint8_t  dig_H1;
+	int16_t  dig_H2;
+	uint8_t  dig_H3;
+	int16_t  dig_H4;
+	int16_t  dig_H5;
+	int8_t   dig_H6;
+} bme280_calib_data;
+void readCoefficients(void);
+uint8_t spixfer(uint8_t x);
+
+void      write8(uint8_t reg, uint8_t value);
+uint8_t   read8(uint8_t reg);
+uint8_t read84real(uint8_t reg);
+uint16_t  read16(uint8_t reg);
+uint32_t  read24(uint8_t reg);
+uint16_t   readS16(uint8_t reg);
+uint16_t  read16_LE(uint8_t reg); // little endian
+int16_t   readS16_LE(uint8_t reg); // little endian
+
+uint8_t   _i2caddr;
+int32_t   _sensorID;
+int32_t t_fine;
+
+int8_t _cs, _mosi, _miso, _sck;
+int8_t  begin(uint8_t addr);
+float readTemperature(void);
+float readPressure(void);
+float readHumidity(void);
+float readAltitude(float seaLevel);
+float seaLevelForAltitude(float altitude, float atmospheric);
+bme280_calib_data _bme280_calib;
+
 
 static int write(void *dev, phydat_t *state)
 {
 	return 0;
 }
 
+static int read(void *dev, phydat_t *res)
+{
+	if (read8(BME280_REGISTER_CHIPID) != 0x60)return false;
+	  readCoefficients();
+
+	  //Set before CONTROL_meas (DS 5.4.3)
+	  write8(BME280_REGISTER_CONTROLHUMID, 0x05); //16x oversampling
+
+	  write8(BME280_REGISTER_CONTROL, 0xB7); // 16x ovesampling, normal mode
+	  printf("\nTEMP:%i,PRESS:%i,HUM:%i\n",(int)readTemperature(),(int)readPressure(),(int)readHumidity());
+	return 1;
+}
 const saul_driver_t spi_saul_driver = {
     .read = read,
     .write = write,
     .type = SAUL_CLASS_ANY,
 };
 
-/*	\Brief: The function is used as SPI bus read
- *	\Return : Status of the SPI read
- *	\param dev_addr : The device address of the sensor
- *	\param reg_addr : Address of the first register, will data is going to be read
- *	\param reg_data : This data read from the sensor, which is hold in an array
- *	\param cnt : The no of byte of data to be read
- */
-s8 BME280_SPI_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
+uint8_t read8(uint8_t reg)
 {
-	s32 iError=BME280_INIT_VALUE;
-	u8 array[SPI_BUFFER_LEN]={0,};
-	/*	For the SPI mode only 7 bits of register addresses are used.
-	The MSB of register address is declared the bit what functionality it is
-	read/write (read as 1/write as BME280_INIT_VALUE)*/
-	array[BME280_INIT_VALUE] = reg_addr|SPI_READ;/*read routine is initiated register address is mask with 0x80*/
-
-
-	/*
-	* Please take the below function as your reference for
-	* read the data using SPI communication
-	* " IERROR = SPI_READ_WRITE_STRING(ARRAY, ARRAY, CNT+1)"
-	* add your SPI read function here
-	* iError is an return value of SPI read function
-	* Please select your valid return value
-	* In the driver SUCCESS defined as 0
-	* and FAILURE defined as -1
-	* Note :
-	* This is a full duplex operation,
-	* The first read data is discarded, for that extra write operation
-	* have to be initiated. For that cnt+1 operation done in the SPI read
-	* and write string function
-	* For more information please refer data sheet SPI communication:
-	*/
-	char starting_reg_addr = reg_addr|SPI_READ;
-	char kuka = bme280_spi_byte_transwer(starting_reg_addr);
-	for (int i = BME280_INIT_VALUE; i < cnt; i++) {
-		*(reg_data + i) = bme280_spi_byte_transwer(starting_reg_addr+i);
-	}
-	return (s8)0;
-}
-
-/*	\Brief: The function is used as SPI bus write
- *	\Return : Status of the SPI write
- *	\param dev_addr : The device address of the sensor
- *	\param reg_addr : Address of the first register, where data is to be written
- *	\param reg_data : It is a value hold in the array,
- *		will be used for write the value into the register
- *	\param cnt : The no of byte of data to be write
- */
-s8 BME280_SPI_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
-{
-	s32 iError = BME280_INIT_VALUE;
-	u8 array[SPI_BUFFER_LEN * BME280_ADDRESS_INDEX];
-	u8 stringpos = BME280_INIT_VALUE;
-	u8 index = BME280_INIT_VALUE;
-//	for (stringpos = BME280_INIT_VALUE; stringpos < cnt; stringpos++) {
-//		/* the operation of (reg_addr++)&0x7F done as per the
-//		SPI communication protocol specified in the data sheet*/
-//		index = stringpos * BME280_ADDRESS_INDEX;
-//		array[index] = (reg_addr++) & SPI_WRITE;
-//		array[index + BME280_DATA_INDEX] = *(reg_data + sauringpos);
-//	}
-
-	char starting_write_addr = reg_addr;
-	for (int i = BME280_INIT_VALUE; i < cnt; i++) {
-		bme280_spi_write_byte(starting_write_addr+i, (char*)(reg_data + i));
-	}
-
-	/* Please take the below function as your reference
-	 * for write the data using SPI communication
-	 * add your SPI write function here.
-	 * "IERROR = SPI_WRITE_STRING(ARRAY, CNT*2)"
-	 * iError is an return value of SPI write function
-	 * Please select your valid return value
-	 * In the driver SUCCESS defined as 0
-	 * and FAILURE defined as -1
-	 */
-	return (s8)0;
-}
-void BME280_delay_msek(u32 msek)
-{
-	xtimer_usleep(msek*1000);
-	return;
-}
-
-char bme280_spi_byte_transwer (char masked_address) {
-	int res;
-	char in, out;
-	char nullas = 0;
-
-	//in = address | 1<<7;
-	masked_address |= (1<<7);
+	reg |=	0x80;
+	uint8_t value,nullas=0;
 	gpio_clear(spi_cs);
-	res = spi_transfer_bytes(spi_dev, &masked_address, &out, 1);
-	res = spi_transfer_bytes(spi_dev, &nullas, &out, 1);
-	printf("reg: %i, value: %02X\n ",masked_address,out);
+	spi_transfer_bytes(0, (char*)&reg, (char*)&value, 1);
+	spi_transfer_bytes(0, (char*)&nullas, (char*)&value, 1);
 	gpio_set(spi_cs);
-
-	return out;
+	DEBUG("read8 reg");
+	DEBUG("%i",reg);
+	DEBUG(", value:");
+	DEBUG("%02X\n",value);
+	return value;
 }
-
-char bme280_spi_write_byte (char masked_address, char* value) {
-	int res;
-	char in, out;
-	masked_address &=0x7F;
+uint8_t read84real(uint8_t reg)
+{
+	reg |=	0x80;
+	uint8_t value,nullas=0;
 	gpio_clear(spi_cs);
-	res = spi_transfer_bytes(spi_dev, &masked_address, &out, 1);
-	res = spi_transfer_bytes(spi_dev, value, &out, 1);
+	spi_transfer_bytes(0, (char*)&reg, (char*)&value, 1);
+	spi_transfer_bytes(0, (char*)&nullas, (char*)&value, 1);
 	gpio_set(spi_cs);
-	printf("addr:%i, writeval:%02X, readval:%02X\n",masked_address,*value, bme280_spi_byte_transwer(masked_address));
+	return value;
+}
+void readCoefficients(void)
+{
+    _bme280_calib.dig_T1 = read16_LE(BME280_REGISTER_DIG_T1);
+    _bme280_calib.dig_T2 = readS16_LE(BME280_REGISTER_DIG_T2);
+    _bme280_calib.dig_T3 = readS16_LE(BME280_REGISTER_DIG_T3);
 
-	return out;
+    _bme280_calib.dig_P1 = read16_LE(BME280_REGISTER_DIG_P1);
+    _bme280_calib.dig_P2 = readS16_LE(BME280_REGISTER_DIG_P2);
+    _bme280_calib.dig_P3 = readS16_LE(BME280_REGISTER_DIG_P3);
+    _bme280_calib.dig_P4 = readS16_LE(BME280_REGISTER_DIG_P4);
+    _bme280_calib.dig_P5 = readS16_LE(BME280_REGISTER_DIG_P5);
+    _bme280_calib.dig_P6 = readS16_LE(BME280_REGISTER_DIG_P6);
+    _bme280_calib.dig_P7 = readS16_LE(BME280_REGISTER_DIG_P7);
+    _bme280_calib.dig_P8 = readS16_LE(BME280_REGISTER_DIG_P8);
+    _bme280_calib.dig_P9 = readS16_LE(BME280_REGISTER_DIG_P9);
+
+    _bme280_calib.dig_H1 = read8(BME280_REGISTER_DIG_H1);
+    _bme280_calib.dig_H2 = readS16_LE(BME280_REGISTER_DIG_H2);
+    _bme280_calib.dig_H3 = read8(BME280_REGISTER_DIG_H3);
+    _bme280_calib.dig_H4 = (read8(BME280_REGISTER_DIG_H4) << 4) | (read8(BME280_REGISTER_DIG_H4+1) & 0xF);
+    _bme280_calib.dig_H5 = (read8(BME280_REGISTER_DIG_H5+1) << 4) | (read8(BME280_REGISTER_DIG_H5) >> 4);
+    _bme280_calib.dig_H6 = (int8_t)read8(BME280_REGISTER_DIG_H6);
+}
+uint16_t read16_LE(uint8_t reg) {
+
+	uint16_t temp = read16(reg);
+	uint16_t retval;
+	DEBUG("read16_LE reg:");
+	DEBUG("%i",reg);
+	DEBUG(", value:");
+	retval = (temp >> 8) | (temp << 8);
+	DEBUG("%04X\n",retval);
+	return retval;
+}
+uint16_t read16(uint8_t reg)
+{
+	uint16_t value;
+	uint8_t* temp;
+	temp = (uint8_t*)&value;
+	*temp=read84real(reg+1);
+	temp++;
+	*temp=read84real(reg);
+	DEBUG("read16 reg:");
+	DEBUG("%i",reg);
+	DEBUG(", value:");
+	DEBUG("%04X\n",value);
+	return value;
+}
+int16_t readS16_LE(uint8_t reg)
+{
+	/*uint16_t temp = read16_LE(reg);
+	DEBUG("readS16_LE reg:");
+	DEBUG("%i",reg);
+	DEBUG(", value:");
+	DEBUG("%04X\n",temp);*/
+	return (int16_t)read16_LE(reg);
+}
+void write8(uint8_t reg, uint8_t value)
+{
+	uint8_t nullas;
+	reg &=0x7F;
+	gpio_clear(spi_cs);
+	spi_transfer_bytes(0, (char*)&reg, (char*)&nullas, 1);
+	spi_transfer_bytes(0, (char*)&value, (char*)&nullas, 1);
+	gpio_set(spi_cs);
+    DEBUG("write8 reg:");
+    DEBUG("%i",reg);
+	DEBUG(", value:");
+	DEBUG("%i",value);
+	DEBUG(", read:");
+	DEBUG("%02X\n",read8(reg));
+  }
+float readTemperature(void){
+	  int32_t var1, var2;
+	  float T;
+	  int32_t adc_T = read24(BME280_REGISTER_TEMPDATA);
+	  adc_T >>= 4;
+
+	  var1  = ((((adc_T>>3) - ((int32_t)_bme280_calib.dig_T1 <<1))) *
+		   ((int32_t)_bme280_calib.dig_T2)) >> 11;
+
+	  var2  = (((((adc_T>>4) - ((int32_t)_bme280_calib.dig_T1)) *
+		     ((adc_T>>4) - ((int32_t)_bme280_calib.dig_T1))) >> 12) *
+		   ((int32_t)_bme280_calib.dig_T3)) >> 14;
+
+	  t_fine = var1 + var2;
+
+	  T  = (t_fine * 5 + 128) >> 8;
+	  return T/100;
+}
+uint32_t read24(uint8_t reg)
+{
+	uint32_t value;
+	//temp = (uint8_t*)&value;
+	value=read84real(reg);
+	value <<=8;
+	value|=read84real(reg+1);
+	value <<=8;
+	value|=read84real(reg+2);
+
+	DEBUG("read24 reg:");
+	DEBUG("%i",reg);
+	DEBUG(", value:");
+	DEBUG("%li\n",value);
+	return value;
+}
+float readPressure(void) {
+  int64_t var1, var2, p;
+
+  readTemperature(); // must be done first to get t_fine
+
+  int32_t adc_P = read24(BME280_REGISTER_PRESSUREDATA);
+  adc_P >>= 4;
+
+  var1 = ((int64_t)t_fine) - 128000;
+  var2 = var1 * var1 * (int64_t)_bme280_calib.dig_P6;
+  var2 = var2 + ((var1*(int64_t)_bme280_calib.dig_P5)<<17);
+  var2 = var2 + (((int64_t)_bme280_calib.dig_P4)<<35);
+  var1 = ((var1 * var1 * (int64_t)_bme280_calib.dig_P3)>>8) +
+    ((var1 * (int64_t)_bme280_calib.dig_P2)<<12);
+  var1 = (((((int64_t)1)<<47)+var1))*((int64_t)_bme280_calib.dig_P1)>>33;
+
+  if (var1 == 0) {
+    return 0;  // avoid exception caused by division by zero
+  }
+  p = 1048576 - adc_P;
+  p = (((p<<31) - var2)*3125) / var1;
+  var1 = (((int64_t)_bme280_calib.dig_P9) * (p>>13) * (p>>13)) >> 25;
+  var2 = (((int64_t)_bme280_calib.dig_P8) * p) >> 19;
+
+  p = ((p + var1 + var2) >> 8) + (((int64_t)_bme280_calib.dig_P7)<<4);
+  return (float)p/256;
+}
+float readHumidity(void) {
+
+  readTemperature(); // must be done first to get t_fine
+
+  int32_t adc_H = read16(BME280_REGISTER_HUMIDDATA);
+
+  int32_t v_x1_u32r;
+
+  v_x1_u32r = (t_fine - ((int32_t)76800));
+
+  v_x1_u32r = (((((adc_H << 14) - (((int32_t)_bme280_calib.dig_H4) << 20) -
+		  (((int32_t)_bme280_calib.dig_H5) * v_x1_u32r)) + ((int32_t)16384)) >> 15) *
+	       (((((((v_x1_u32r * ((int32_t)_bme280_calib.dig_H6)) >> 10) *
+		    (((v_x1_u32r * ((int32_t)_bme280_calib.dig_H3)) >> 11) + ((int32_t)32768))) >> 10) +
+		  ((int32_t)2097152)) * ((int32_t)_bme280_calib.dig_H2) + 8192) >> 14));
+
+  v_x1_u32r = (v_x1_u32r - (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) *
+			     ((int32_t)_bme280_calib.dig_H1)) >> 4));
+
+  v_x1_u32r = (v_x1_u32r < 0) ? 0 : v_x1_u32r;
+  v_x1_u32r = (v_x1_u32r > 419430400) ? 419430400 : v_x1_u32r;
+  float h = (v_x1_u32r>>12);
+  return  h / 1024.0;
 }
