@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 #ifdef MODULE_SAUL_BME280
 
 #include <stdint.h>
@@ -63,14 +65,14 @@ void auto_init_bme280(void) {
 	printf("SPI_%i successfully initialized as master, cs: GPIO_%ld, mode: %i, speed: %i\n", spi_dev, (long)spi_cs, spi_mode, spi_speed);
 
 	/*Reading the chip id*/
-	char in, out;
+	char in, out, kuka;
 	char nullas = 0;
 
 	int id = 0xd0;
 	in = id | 1<<7;
 
 	gpio_clear(spi_cs);
-	res = spi_transfer_bytes(spi_dev, &in, &out, 1);
+	res = spi_transfer_bytes(spi_dev, &in, &kuka, 1);
 	res = spi_transfer_bytes(spi_dev, &nullas, &out, 1);
 	gpio_set(spi_cs);
 
