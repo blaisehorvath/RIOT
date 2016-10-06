@@ -30,7 +30,10 @@
 #include "debug.h"
 #define ENABLE_DEBUG (1)
 #include "inttypes.h"
-#define spi_cs GPIO_PIN(0,1)
+
+#define spi_cs GPIO_PIN(1,12)
+static	int spi_dev = SPI_1;
+
 #define BME280_REGISTER_DIG_T1               0x88
 #define BME280_REGISTER_DIG_T2               0x8A
 #define BME280_REGISTER_DIG_T3               0x8C
@@ -64,6 +67,7 @@
 #define BME280_REGISTER_PRESSUREDATA        0xF7
 #define BME280_REGISTER_TEMPDATA            0xFA
 #define BME280_REGISTER_HUMIDDATA           0xFD
+
 typedef struct
 {
 	uint16_t dig_T1;
@@ -87,6 +91,7 @@ typedef struct
 	int16_t  dig_H5;
 	int8_t   dig_H6;
 } bme280_calib_data;
+
 void readCoefficients(void);
 uint8_t spixfer(uint8_t x);
 
@@ -121,13 +126,23 @@ static int write(void *dev, phydat_t *state)
 static int read(void *dev, phydat_t *res)
 {
 	if (read8(BME280_REGISTER_CHIPID) != 0x60)return false;
-	  readCoefficients();
 
-	  //Set before CONTROL_meas (DS 5.4.3)
-	  write8(BME280_REGISTER_CONTROLHUMID, 0x05); //16x oversampling
+	readCoefficients();
 
-	  write8(BME280_REGISTER_CONTROL, 0xB7); // 16x ovesampling, normal mode
-	  printf("\nTEMP:%i,PRESS:%i,HUM:%i\n",(int)readTemperature(),(int)readPressure(),(int)readHumidity());
+	//Set before CONTROL_meas (DS 5.4.3)
+	write8(BME280_REGISTER_CONTROLHUMID, 0x05); //16x oversampling
+
+	write8(BME280_REGISTER_CONTROL, 0xB7); // 16x ovesampling, normal mode
+
+	/* Filling in the values to the response struct */
+	res->val[0] = (int)(readTemperature() * 100); // the temperature in centiCelsius
+	res->val[1] = (int)(readPressure()/10); // dkPa
+	res->val[2] = (int)(readHumidity()*100); // 1/10000
+	res->unit = UNIT_UNDEF;
+	res->scale = 1;
+
+
+	printf("\nTEMP:%i, PRESS:%i, HUM:%i\n",(int)readTemperature(),(int)readPressure(),(int)readHumidity());
 	return 1;
 }
 const saul_driver_t spi_saul_driver = {
@@ -141,8 +156,8 @@ uint8_t read8(uint8_t reg)
 	reg |=	0x80;
 	uint8_t value,nullas=0;
 	gpio_clear(spi_cs);
-	spi_transfer_bytes(0, (char*)&reg, (char*)&value, 1);
-	spi_transfer_bytes(0, (char*)&nullas, (char*)&value, 1);
+	spi_transfer_bytes(spi_dev, (char*)&reg, (char*)&value, 1);
+	spi_transfer_bytes(spi_dev, (char*)&nullas, (char*)&value, 1);
 	gpio_set(spi_cs);
 	DEBUG("read8 reg");
 	DEBUG("%i",reg);
@@ -150,16 +165,18 @@ uint8_t read8(uint8_t reg)
 	DEBUG("%02X\n",value);
 	return value;
 }
+
 uint8_t read84real(uint8_t reg)
 {
 	reg |=	0x80;
 	uint8_t value,nullas=0;
 	gpio_clear(spi_cs);
-	spi_transfer_bytes(0, (char*)&reg, (char*)&value, 1);
-	spi_transfer_bytes(0, (char*)&nullas, (char*)&value, 1);
+	spi_transfer_bytes(spi_dev, (char*)&reg, (char*)&value, 1);
+	spi_transfer_bytes(spi_dev, (char*)&nullas, (char*)&value, 1);
 	gpio_set(spi_cs);
 	return value;
 }
+
 void readCoefficients(void)
 {
     _bme280_calib.dig_T1 = read16_LE(BME280_REGISTER_DIG_T1);
@@ -183,6 +200,7 @@ void readCoefficients(void)
     _bme280_calib.dig_H5 = (read8(BME280_REGISTER_DIG_H5+1) << 4) | (read8(BME280_REGISTER_DIG_H5) >> 4);
     _bme280_calib.dig_H6 = (int8_t)read8(BME280_REGISTER_DIG_H6);
 }
+
 uint16_t read16_LE(uint8_t reg) {
 
 	uint16_t temp = read16(reg);
@@ -208,6 +226,7 @@ uint16_t read16(uint8_t reg)
 	DEBUG("%04X\n",value);
 	return value;
 }
+
 int16_t readS16_LE(uint8_t reg)
 {
 	/*uint16_t temp = read16_LE(reg);
@@ -217,13 +236,14 @@ int16_t readS16_LE(uint8_t reg)
 	DEBUG("%04X\n",temp);*/
 	return (int16_t)read16_LE(reg);
 }
+
 void write8(uint8_t reg, uint8_t value)
 {
 	uint8_t nullas;
 	reg &=0x7F;
 	gpio_clear(spi_cs);
-	spi_transfer_bytes(0, (char*)&reg, (char*)&nullas, 1);
-	spi_transfer_bytes(0, (char*)&value, (char*)&nullas, 1);
+	spi_transfer_bytes(spi_dev, (char*)&reg, (char*)&nullas, 1);
+	spi_transfer_bytes(spi_dev, (char*)&value, (char*)&nullas, 1);
 	gpio_set(spi_cs);
     DEBUG("write8 reg:");
     DEBUG("%i",reg);
@@ -232,6 +252,7 @@ void write8(uint8_t reg, uint8_t value)
 	DEBUG(", read:");
 	DEBUG("%02X\n",read8(reg));
   }
+
 float readTemperature(void){
 	  int32_t var1, var2;
 	  float T;
@@ -250,6 +271,7 @@ float readTemperature(void){
 	  T  = (t_fine * 5 + 128) >> 8;
 	  return T/100;
 }
+
 uint32_t read24(uint8_t reg)
 {
 	uint32_t value;
@@ -266,6 +288,7 @@ uint32_t read24(uint8_t reg)
 	DEBUG("%li\n",value);
 	return value;
 }
+
 float readPressure(void) {
   int64_t var1, var2, p;
 
@@ -293,6 +316,7 @@ float readPressure(void) {
   p = ((p + var1 + var2) >> 8) + (((int64_t)_bme280_calib.dig_P7)<<4);
   return (float)p/256;
 }
+
 float readHumidity(void) {
 
   readTemperature(); // must be done first to get t_fine

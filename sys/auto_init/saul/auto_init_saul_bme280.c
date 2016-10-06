@@ -21,11 +21,11 @@
 #define reg 0xd0 //uint 208
 #define length 1 /* read 1 byte*/
 
-static	int spi_dev = SPI_0;
+static	int spi_dev = SPI_1;
 #define	 spi_mode  SPI_CONF_FIRST_RISING
 #define	 spi_speed  SPI_SPEED_1MHZ
-#define port  0
-#define pin  1
+#define port 1
+#define pin  12
 #define spi_cs  GPIO_PIN(port,pin)
 
 #define ENABLE_DEBUG (0)
